@@ -72,7 +72,3 @@ class PDENN(nn.Module):
     def forward(self, input):
         out = self.layers(input)
         return out
-
-
-
-    

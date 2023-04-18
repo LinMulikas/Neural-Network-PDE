@@ -2,12 +2,26 @@ from PDE2D import *
 
 class HeatEq(PDE2D):
    
+    def __init__(self, t: Tuple[int, int], x: Tuple[int, int], N: int, load_dict: bool) -> None:
+        super().__init__()
+        ##TODO: ensure that the loaded net has the same epoch.
+        self.net.PDENAME = "HeatEq"
+        
+        if(load_dict):
+            self.loadBestDict()
+        
+        self.t = t
+        self.x = x
+        self.N = N
+    
+   
     def calculateLoss(self) -> torch.Tensor:
         return 0.1 * self.loss_PDE() + 0.3 * self.loss_BC() + 0.6 * self.loss_IC()
     
     def loss_PDE(self) -> torch.Tensor:
         eq = self.pt - self.px2
         return self.net.loss_criterion(eq, torch.zeros_like(eq))
+    
     
     
     def loss_BC(self) -> torch.Tensor:
