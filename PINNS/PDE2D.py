@@ -1,7 +1,7 @@
 from PDENN import *
 from typing import *
 import numpy as np
-
+import os
 import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -12,9 +12,9 @@ from mpl_toolkits.mplot3d import Axes3D
 """
 class PDE2D():
     N: int
+    net: PDENN
     
     def __init__(self) -> None:
-        self.net = PDENN(input_size=2, output_size=1, hidden_depth=10, hidden_size=6, lr = 1e-2)
         self.net.PDENAME = None
         
         
@@ -150,7 +150,8 @@ class PDE2D():
             
         for self.net.cnt_Epoch in range(epoch):   
             self.net.optim.step(self.loss)
-            self.net.sched.step(self.net.loss_tensor)
+            if(self.auto_lr):
+                self.net.sched.step(self.net.loss_tensor)
             self.trainInfo()
 
         self.net.lbfgs.step(self.loss)
@@ -183,11 +184,16 @@ class PDE2D():
     def autoSave(self):
         if(self.net.PDENAME == None):
             raise(KeyError("No instance of method."))
-            
-        save_path = "..PINNS/models/" + self.__class__.__name__ + "/checkpoints_" + self.net.optim.__class__.__name__ + "/"
+        
+        rootPath = os.getcwd()
+        save_path = "/PINNS/models/" + self.__class__.__name__ + "/checkpoints_" + self.net.optim.__class__.__name__ + "/"
             
         filepath = os.path.join(
-            save_path, 'auto_save_Gen_{}_Loss_.'.format(self.net.cnt_Epoch // self.net.save_gap) + str(round(self.net.loss_value, 10)) + '.pt'.format(self.net.cnt_Epoch//self.net.save_gap))
+            rootPath,
+            save_path, 
+            'auto_save_Gen_{}_Loss_.'.format(
+                self.net.cnt_Epoch // self.net.save_gap) + str(round(self.net.loss_value, 10)) + '.pt'.format(self.net.cnt_Epoch//self.net.save_gap)
+            )
         
         data = {'dict': self.net.state_dict(), 
                 'best_loss': self.net.best_loss,
@@ -201,10 +207,11 @@ class PDE2D():
     def saveBest(self):
         if(self.net.PDENAME == None):
             raise(KeyError("No instance of method."))
+        
+        rootPath = os.getcwd()
+        save_path = "/PINNS/models/" + self.__class__.__name__ + "/checkpoints_" + self.net.optim.__class__.__name__ + "/" + 'best_dict.pt'
             
-        save_path = '/home/wangdl/Public_Project/PDE_NN_Solver/model_dict/' + self.net.PDENAME + '/'  'checkpoints_' + self.net.optim.__class__.__name__
-            
-        filepath = os.path.join(save_path, 'best_dict.pt')
+        filepath = rootPath + save_path
         
         data = {'dict': self.net.state_dict(), 
                 'best_loss': self.net.best_loss,
@@ -230,7 +237,6 @@ class PDE2D():
             self.net.best_Epoch = self.net.cnt_Epoch
             
             self.saveBest()
-            self.drawPred(500, 'coolwarm')
                           
             print("- Best dict saved at epoch {}.".format(
                 self.net.cnt_Epoch))
@@ -274,9 +280,11 @@ class PDE2D():
         #? Calculate the Differential
         self.net.optim.zero_grad()
         
-        t_line = torch.rand((self.N, )) * (self.t[1] - self.t[0]) + self.t[0]
-        x_line = torch.rand((self.N, )) * (self.x[1] - self.x[0]) + self.x[0]
-        X = torch.meshgrid(torch.vstack(t_line, x_line)).reshape((2, -1)).T
+        t_line, indices_t = torch.sort(torch.rand((self.N, )) * (self.t[1] - self.t[0]) + self.t[0])
+        x_line, indices_x = torch.sort(torch.rand((self.N, )) * (self.x[1] - self.x[0]) + self.x[0])
+        
+        self.X = torch.stack(torch.meshgrid([t_line, x_line])).reshape((2, -1)).T
+        self.X.requires_grad_()
         
         self.U = self.net(self.X)
         self.dX = torch.autograd.grad(self.U, self.X, torch.ones_like(self.U), create_graph=True, retain_graph=True)[0]
