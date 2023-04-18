@@ -163,7 +163,7 @@ class PDE2D():
             raise(KeyError("No instance of method."))
             
         rootPath = os.getcwd()
-        savePath = "/models/" + self.__class__.__name__ + "/checkpoints_" + self.net.optim.__class__.__name__ + "/"
+        savePath = "/models/" + "/checkpoints_" + self.net.optim.__class__.__name__ + "/"
         
         filePath = rootPath + savePath + fileName
         
@@ -180,7 +180,7 @@ class PDE2D():
             raise(KeyError("No instance of method."))
             
         rootPath = os.getcwd()
-        savePath = "/models/" + self.__class__.__name__ + "/checkpoints_" + self.net.optim.__class__.__name__ + "/"
+        savePath = "/models/" + "/checkpoints_" + self.net.optim.__class__.__name__ + "/"
         fileName = 'best_dict.pt'
             
         filePath = rootPath + savePath + fileName
@@ -199,10 +199,10 @@ class PDE2D():
             raise(KeyError("No instance of method."))
         
         rootPath = os.getcwd()
-        save_path = "/models/" + self.__class__.__name__ + "/checkpoints_" + self.net.optim.__class__.__name__ + "/"
+        savePath = "/models/" + "/checkpoints_" + self.net.optim.__class__.__name__ + "/"
         fileName = "Gen_{}_Loss_{}.pt".format(self.net.cnt_Epoch // self.net.save_gap, str(round(self.net.loss_value, 10))) 
         
-        filepath = rootPath + save_path + fileName
+        filepath = rootPath + savePath + fileName
         
         data = {'dict': self.net.state_dict(), 
                 'best_loss': self.net.best_loss,
@@ -218,7 +218,7 @@ class PDE2D():
             raise(KeyError("No instance of method."))
         
         rootPath = os.getcwd()
-        save_path = "/models/" + self.__class__.__name__ + "/checkpoints_" + self.net.optim.__class__.__name__ + "/" + 'best_dict.pt'
+        save_path = "/models/" + "/checkpoints_" + self.net.optim.__class__.__name__ + "/" + 'best_dict.pt'
             
         filepath = rootPath + save_path
         
