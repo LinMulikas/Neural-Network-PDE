@@ -276,6 +276,7 @@ class PDE2D():
         
         t_line = torch.rand((self.N, )) * (self.t[1] - self.t[0]) + self.t[0]
         x_line = torch.rand((self.N, )) * (self.x[1] - self.x[0]) + self.x[0]
+        X = torch.meshgrid(torch.vstack(t_line, x_line)).reshape((2, -1)).T
         
         self.U = self.net(self.X)
         self.dX = torch.autograd.grad(self.U, self.X, torch.ones_like(self.U), create_graph=True, retain_graph=True)[0]
