@@ -5,7 +5,7 @@ class HeatEq(PDE2D):
     def __init__(self,
                  t: Tuple[int, int], x: Tuple[int, int], 
                  N: int,
-                 load_dict = False,
+                 load_best = False,
                  auto_lr = False,
                  net = PDENN(
                      input_size=2, output_size=1, hidden_depth=10, hidden_size=6, lr = 1e-2),
@@ -15,7 +15,7 @@ class HeatEq(PDE2D):
         super().__init__()
         self.net.PDENAME = "HeatEq"
         
-        if(load_dict):
+        if(load_best):
             self.loadBestDict()
         
         self.t = t

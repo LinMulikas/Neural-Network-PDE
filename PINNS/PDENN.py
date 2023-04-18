@@ -15,7 +15,7 @@ from collections import OrderedDict
 """
 class PDENN(nn.Module):
     dtype_default = torch.float32
-    save_gap = 50
+    save_gap = 100
     best_Epoch = -1
     cnt_Epoch = 0
      

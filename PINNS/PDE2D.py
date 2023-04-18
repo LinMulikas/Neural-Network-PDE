@@ -94,9 +94,9 @@ class PDE2D():
             
         torch.no_grad()
         
-        t_line = torch.arange(self.t_line[0], self.t_line[-1] + 1/N, 1/N)
-        x_line = torch.arange(self.x_line[0], self.x_line[-1] + 1/N, 1/N)
-
+        t_line = torch.arange(self.t[0], self.t[1] + 1/N, 1/N)
+        x_line = torch.arange(self.x[0], self.x[1] + 1/N, 1/N)
+        
         t, x = torch.meshgrid(t_line, x_line)
         
         data_input = torch.vstack([t.flatten(), x.flatten()]).T
@@ -120,8 +120,8 @@ class PDE2D():
             
         torch.no_grad()
         
-        t_line = torch.arange(self.t_line[0], self.t_line[-1] + 1/N, 1/N)
-        x_line = torch.arange(self.x_line[0], self.x_line[-1] + 1/N, 1/N)
+        t_line = torch.arange(self.t[0], self.t[1] + 1/N, 1/N)
+        x_line = torch.arange(self.x[0], self.x[1] + 1/N, 1/N)
 
         t, x = torch.meshgrid(t_line, x_line)
         
@@ -162,7 +162,13 @@ class PDE2D():
         if(self.net.PDENAME == None):
             raise(KeyError("No instance of method."))
             
-        data = torch.load('./models/' + self.net.PDENAME + '/' + 'checkpoints_' + self.net.optim.__class__.__name__ + '/' + fileName + '.pt')
+        rootPath = os.getcwd()
+        savePath = "/models/" + self.__class__.__name__ + "/checkpoints_" + self.net.optim.__class__.__name__ + "/"
+        
+        filePath = rootPath + savePath + fileName
+        
+        data = torch.load(filePath)
+        
         self.net.load_state_dict(data['dict'])
         self.net.best_Epoch = data['best_Epoch']
         self.net.best_loss = data['best_loss']
@@ -173,7 +179,14 @@ class PDE2D():
         if(self.net.PDENAME == None):
             raise(KeyError("No instance of method."))
             
-        data = torch.load('./models/' + self.net.PDENAME + '/training/' + '/best_dict.pt')
+        rootPath = os.getcwd()
+        savePath = "/models/" + self.__class__.__name__ + "/checkpoints_" + self.net.optim.__class__.__name__ + "/"
+        fileName = 'best_dict.pt'
+            
+        filePath = rootPath + savePath + fileName
+        
+        data = torch.load(filePath)
+        
         self.net.load_state_dict(data['dict'], True)
         self.net.best_Epoch = data['best_Epoch']
         self.net.best_loss = data['best_loss']
@@ -186,14 +199,10 @@ class PDE2D():
             raise(KeyError("No instance of method."))
         
         rootPath = os.getcwd()
-        save_path = "/PINNS/models/" + self.__class__.__name__ + "/checkpoints_" + self.net.optim.__class__.__name__ + "/"
-            
-        filepath = os.path.join(
-            rootPath,
-            save_path, 
-            'auto_save_Gen_{}_Loss_.'.format(
-                self.net.cnt_Epoch // self.net.save_gap) + str(round(self.net.loss_value, 10)) + '.pt'.format(self.net.cnt_Epoch//self.net.save_gap)
-            )
+        save_path = "/models/" + self.__class__.__name__ + "/checkpoints_" + self.net.optim.__class__.__name__ + "/"
+        fileName = "Gen_{}_Loss_{}.pt".format(self.net.cnt_Epoch // self.net.save_gap, str(round(self.net.loss_value, 10))) 
+        
+        filepath = rootPath + save_path + fileName
         
         data = {'dict': self.net.state_dict(), 
                 'best_loss': self.net.best_loss,
@@ -209,7 +218,7 @@ class PDE2D():
             raise(KeyError("No instance of method."))
         
         rootPath = os.getcwd()
-        save_path = "/PINNS/models/" + self.__class__.__name__ + "/checkpoints_" + self.net.optim.__class__.__name__ + "/" + 'best_dict.pt'
+        save_path = "/models/" + self.__class__.__name__ + "/checkpoints_" + self.net.optim.__class__.__name__ + "/" + 'best_dict.pt'
             
         filepath = rootPath + save_path
         
