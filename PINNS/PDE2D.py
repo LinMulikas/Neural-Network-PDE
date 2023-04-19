@@ -1,5 +1,6 @@
 from PDENN import *
 from typing import *
+from pyDOE import lhs
 import numpy as np
 import os
 import matplotlib; matplotlib.use('Agg')
@@ -14,14 +15,44 @@ class PDE2D():
     N: int
     net: PDENN
     
-    def __init__(self) -> None:
-        self.net.PDENAME = None
+    #TODO: Abstract Method.
+    #TODO: Abstract Method.
+    def __init__(self, net: PDENN, load_best = False, auto_lr = True) -> None:
+        self.net = net
+        self.net.PDENAME = self.__class__.__name__
+
+        super().__init__()
+        
+        if(load_best):
+            self.loadBestDict()
+        
+        self.auto_lr = auto_lr
         
         
-    def setOptim(self, optim):
-        self.net.optim = optim
-        
-        
+    def realSolution(self):
+        raise KeyError("No instance of this method.")
+    
+    def loss(self):
+        raise KeyError("No instance of Method.")
+       
+       
+    def loss_PDE(self) -> torch.Tensor:
+        if(self.net.PDENAME == None):
+            raise(KeyError("No instance of method."))
+            
+       
+    def loss_BC(self) -> torch.Tensor:
+        if(self.net.PDENAME == None):
+            raise(KeyError("No instance of method."))
+            
+
+    def loss_IC(self) -> torch.Tensor:
+        if(self.net.PDENAME == None):
+            raise(KeyError("No instance of method."))
+            
+
+
+    #TODO: Methods. 
     def drawError(self, N: int, cmap: str):
         if(self.net.PDENAME == None):
             raise(KeyError("No instance of method."))
@@ -110,10 +141,7 @@ class PDE2D():
         x = x.detach().numpy()
         return (t, x, u)
          
-    
-    def realSolution(self):
-        raise KeyError("No instance of this method.")
-        
+
     def getPredPts(self, N: int):
         if(self.net.PDENAME == None):
             raise(KeyError("No instance of method."))
@@ -155,8 +183,8 @@ class PDE2D():
             self.trainInfo()
 
         self.net.lbfgs.step(self.loss)
-    
         torch.save(self, "final_model.pth")
+    
     
     def loadDict(self, fileName):
         if(self.net.PDENAME == None):
@@ -180,7 +208,7 @@ class PDE2D():
             raise(KeyError("No instance of method."))
             
         rootPath = os.getcwd()
-        savePath = "/models/" + "/checkpoints_" + self.net.optim.__class__.__name__ + "/"
+        savePath = "/models/" + "checkpoints_" + self.net.optim.__class__.__name__ + "/"
         fileName = 'best_dict.pt'
             
         filePath = rootPath + savePath + fileName
@@ -230,8 +258,6 @@ class PDE2D():
         
         torch.save(data, filepath)
         
-        
-  
   
     def trainInfo(self):
         if(self.net.PDENAME == None):
@@ -269,55 +295,6 @@ class PDE2D():
             print()
     
     
-    def calculateLoss(self) -> torch.Tensor:
-        if(self.net.PDENAME == None):
-            raise(KeyError("No instance of method."))
-    
-    """
-        The version of concacted input, with X = (t, x).
-        
-        X = [   (t_0, x_0), (t_0, x_1), ..., 
-                (t_1, x_0), (t_1, x_1), ...,
-                ...
-                (t_N_t, x_0), ...]
-        ##TODO: The input with high dimension x.
-    """
-    def loss(self):
-        if(self.net.PDENAME == None):
-            raise(KeyError("No instance of method."))
-            
-        #? Calculate the Differential
-        self.net.optim.zero_grad()
-        
-        t_line, indices_t = torch.sort(torch.rand((self.N, )) * (self.t[1] - self.t[0]) + self.t[0])
-        x_line, indices_x = torch.sort(torch.rand((self.N, )) * (self.x[1] - self.x[0]) + self.x[0])
-        
-        self.X = torch.stack(torch.meshgrid([t_line, x_line])).reshape((2, -1)).T
-        self.X.requires_grad_()
-        
-        self.U = self.net(self.X)
-        self.dX = torch.autograd.grad(self.U, self.X, torch.ones_like(self.U), create_graph=True, retain_graph=True)[0]
-        self.dX2 = torch.autograd.grad(self.dX, self.X, torch.ones_like(self.dX), create_graph=True, retain_graph=True)[0]
-        
-        self.pt = self.dX[:, 0]
-        self.px = self.dX[:, 1]
-        
-        self.pt2 = self.dX2[:, 0]
-        self.px2 = self.dX2[:, 1]
-        #? Calculate the Loss
-        loss = self.calculateLoss()
-        loss.backward()
-                
-        self.net.loss_tensor = loss.clone()
-        self.net.cnt_Epoch = self.net.cnt_Epoch + 1 
-        self.net.loss_value = self.net.loss_tensor.item()
-        self.net.loss_history.append(self.net.loss_value)
-        
-        #? Backward
-        return self.net.loss_tensor
-    
-
-    
     
     def clearDif(self):
         if(self.net.PDENAME == None):
@@ -330,22 +307,3 @@ class PDE2D():
         self.pt2 = torch.zeros((1, 1))
         self.px2 = torch.zeros((1, 1))
     
-    
-    
-    
-    
-    def loss_PDE(self) -> torch.Tensor:
-        if(self.net.PDENAME == None):
-            raise(KeyError("No instance of method."))
-            
-       
-    def loss_BC(self) -> torch.Tensor:
-        if(self.net.PDENAME == None):
-            raise(KeyError("No instance of method."))
-            
-
-    
-    def loss_IC(self) -> torch.Tensor:
-        if(self.net.PDENAME == None):
-            raise(KeyError("No instance of method."))
-            
