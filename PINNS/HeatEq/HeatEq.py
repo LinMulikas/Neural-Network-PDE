@@ -1,35 +1,15 @@
 import sys
 from os import path
+import pyDOE
+
 sys.path.append(path.dirname(path.dirname(path.abspath('__file__'))))
 
 from PDE2D import *
 
 class HeatEq(PDE2D):
-    
-    def __init__(self,
-                 t: Tuple[int, int], x: Tuple[int, int], 
-                 N: int,
-                 load_best = False,
-                 auto_lr = False,
-                 net = PDENN(
-                     input_size=2, output_size=1, hidden_depth=10, hidden_size=6, lr = 1e-2),
-                 ) -> None:
-        
-        self.net = net
-        super().__init__()
-        self.net.PDENAME = "HeatEq"
-        
-        if(load_best):
-            self.loadBestDict()
-        
-        self.t = t
-        self.x = x
-        self.N = N
-        self.auto_lr = auto_lr
-    
-   
+
     def calculateLoss(self) -> torch.Tensor:
-        return 0.1 * self.loss_PDE() + 0.3 * self.loss_BC() + 0.6 * self.loss_IC()
+        return self.loss_PDE() + self.loss_BC() +  self.loss_IC()
     
     def loss_PDE(self) -> torch.Tensor:
         eq = self.pt - self.px2
@@ -38,23 +18,21 @@ class HeatEq(PDE2D):
     
     
     def loss_BC(self) -> torch.Tensor:
-        t_line = torch.rand((int(self.N/2), ))
-        x_line = torch.rand((int(self.N/2), ))
+        t_lhs = torch.Tensor(self.t[0] + (self.t[1] - self.t[0]) * pyDOE.lhs(1, self.N))
+        t_lhs = torch.Tensor(self.t[0] + (self.t[1] - self.t[0]) * pyDOE.lhs(1, self.N))
         
-        lhs = torch.stack(torch.meshgrid(t_line, 
-                                         torch.asarray(self.x[0], dtype=torch.float32))).reshape((2, -1)).T
-        rhs = torch.stack(torch.meshgrid(t_line,
-                                         torch.asarray(self.x[1], dtype=torch.float32))).reshape((2, -1)).T
+        lhs = torch.stack([t_lhs, self.x[0] * torch.ones_like(t_lhs)]).reshape((2, -1)).T
+        rhs = torch.stack([t_lhs, self.x[1] * torch.ones_like(t_lhs)]).reshape((2, -1)).T
+        
         bc = torch.vstack([lhs ,rhs])
         eq = self.net(bc)
         return self.net.loss_criterion(eq, torch.zeros_like(eq))
 
     
     def loss_IC(self) -> torch.Tensor:
-        x_line = torch.rand((int(self.N/2), ))
-        ic = torch.stack(torch.meshgrid(
-            torch.asarray(self.t[0], dtype=torch.float32), 
-            x_line)).reshape((2, -1)).T
+        x_line = torch.Tensor(self.x[0] + (self.x[1] - self.x[0])*pyDOE.lhs(1, self.N))
+        ic = torch.stack([self.t[0] * torch.ones_like(x_line), x_line]).reshape((2, -1)).T
+        
         eq = self.net(ic).reshape((-1, 1)) - torch.sin(torch.pi * x_line.reshape((-1, 1)))
         return self.net.loss_criterion(eq, torch.zeros_like(eq))
     
