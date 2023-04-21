@@ -66,7 +66,7 @@ class PDENN(nn.Module):
         
         self.optim = self.adam
         self.sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optim, mode = 'min', factor=0.2, patience=50)
+            self.optim, mode = 'min', factor=0.2, patience=200)
         
 
     def forward(self, input):
