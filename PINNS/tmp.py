@@ -1,5 +1,3 @@
-import torch as tc
+import deepxde.nn
 
-a = tc.arange(1, 2, 1)
-
-print(type(a.item()))
+deepxde.geometry

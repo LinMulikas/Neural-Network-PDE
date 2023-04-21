@@ -69,7 +69,9 @@ class HeatEq(PDE2D):
         
         self.X.requires_grad_()
         self.U = self.net(self.X)
+        
         self.dX = torch.autograd.grad(self.U, self.X, torch.ones_like(self.U), create_graph=True, retain_graph=True)[0]
+        
         self.dX2 = torch.autograd.grad(self.dX, self.X, torch.ones_like(self.dX), create_graph=True, retain_graph=True)[0]
         
         self.pt = self.dX[:, 0]
@@ -106,4 +108,4 @@ class HeatEq(PDE2D):
     def realSolution(self, X: torch.Tensor):
         t = X[:, 0]
         x = X[:, 1]
-        return torch.sin(torch.pi * x) * torch.exp(-torch.pi**2 * t)
+        return torch.sin(torch.pi * x) * torch.exp(-(torch.pi**2)* t)

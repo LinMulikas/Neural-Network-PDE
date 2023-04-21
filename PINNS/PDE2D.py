@@ -1,5 +1,5 @@
 from PDENN import *
-from typing import *
+from typing import Tuple
 from pyDOE import lhs
 import numpy as np
 import os
@@ -29,7 +29,7 @@ class PDE2D():
         self.auto_lr = auto_lr
         
         
-    def realSolution(self):
+    def realSolution(self, X: torch.Tensor):
         raise KeyError("No instance of this method.")
     
     def loss(self):
