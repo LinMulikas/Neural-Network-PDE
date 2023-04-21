@@ -19,27 +19,12 @@ class HeatEq(PDE2D):
         self.N = N
         
         self.X = Tensor(x[0] + (x[1] - x[0]) * np.array(pyDOE.lhs(2, N)))
-        self.X.requires_grad_()
         
-        self.U = self.net(self.X)
-        self.dU = grad(
-            self.U, self.X, torch.ones_like(self.U), True, True
-            )[0]
-        
-        self.pt = self.dU[:, 0]
-        self.px = self.dU[:, 1]
-        
-        self.dU2 = grad(
-            self.dU, self.X, torch.ones_like(self.dU), True, True
-            )[0]
-        
-        self.pt2 = self.dU2[:, 0]
-        self.px2 = self.dU2[:, 1]
-        
+        x_lhs = torch.Tensor(x[0] + (x[1] - x[0]) * np.array(pyDOE.lhs(1, N)))
         self.IC = torch.cat((
             torch.hstack((
-                torch.arange(t[0], t[1], 1.0/N).reshape((-1, 1)),
-                torch.zeros((N, 1))
+                torch.zeros_like(x_lhs),
+                x_lhs
                 )), 
             torch.hstack((
                 Tensor(t[0] + (t[1] - t[0]) * np.array(pyDOE.lhs(1, N))),
@@ -49,8 +34,22 @@ class HeatEq(PDE2D):
         
         
         #TODO: To write
-        
-        self.BC = torch.cat((BC_lhs, BC_rhs))
+        t_lhs = torch.Tensor(t[0] + (t[1] - t[0]) * np.array(pyDOE.lhs(1, N)))
+        t_rhs = torch.Tensor(t[0] + (t[1] - t[0]) * np.array(pyDOE.lhs(1, N)))
+
+        self.BC = torch.cat((
+            torch.hstack((
+                t_lhs,
+                torch.zeros_like(t_lhs)
+            )),
+            torch.hstack((
+                t_rhs,
+                torch.ones_like(t_rhs)
+            ))
+        ))
+                
+                
+                
     
     """
         The version of concacted input, with X = (t, x).
@@ -68,6 +67,7 @@ class HeatEq(PDE2D):
         #? Calculate the Differential
         self.net.optim.zero_grad()
         
+        self.X.requires_grad_()
         self.U = self.net(self.X)
         self.dX = torch.autograd.grad(self.U, self.X, torch.ones_like(self.U), create_graph=True, retain_graph=True)[0]
         self.dX2 = torch.autograd.grad(self.dX, self.X, torch.ones_like(self.dX), create_graph=True, retain_graph=True)[0]
@@ -78,13 +78,16 @@ class HeatEq(PDE2D):
         self.pt2 = self.dX2[:, 0]
         self.px2 = self.dX2[:, 1]
         
+        #? Loss_PDE
         eq_pde = self.pt - self.px2
         loss_pde = self.net.loss_criterion(eq_pde, torch.zeros_like(eq_pde))
         
+        #? Loss_BC
         eq_bc = self.net(self.BC).reshape((-1, 1))
         loss_bc = self.net.loss_criterion(eq_bc, torch.zeros_like(eq_bc))
         
-        eq_ic = self.net(self.IC).reshape((-1, 1)) - torch.sin(torch.pi * self.IC[:, 1].reshape((-1, 1)))
+        #? Loss_IC
+        eq_ic = self.net(self.IC).reshape((-1, 1)) - torch.sin(torch.pi * self.IC[:, 1]).reshape((-1, 1))
         loss_ic = self.net.loss_criterion(eq_ic, torch.zeros_like(eq_ic))
     
         #? Calculate the Loss
