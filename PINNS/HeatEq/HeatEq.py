@@ -1,40 +1,106 @@
 import sys
 from os import path
 import pyDOE
+import numpy as np
+from torch import Tensor
+from torch.autograd import grad
 
 sys.path.append(path.dirname(path.dirname(path.abspath('__file__'))))
 
 from PDE2D import *
 
 class HeatEq(PDE2D):
+    
+    def __init__(self, t: Tuple[int, int], x: Tuple[int, int], N: int, net: PDENN, load_best=False, auto_lr=True) -> None:
+        super().__init__(net, load_best, auto_lr)
+        
+        self.t = t
+        self.x = x
+        self.N = N
+        
+        self.X = Tensor(x[0] + (x[1] - x[0]) * np.array(pyDOE.lhs(2, N)))
+        
+        x_lhs = torch.Tensor(x[0] + (x[1] - x[0]) * np.array(pyDOE.lhs(1, N)))
+        self.IC = torch.cat((
+            torch.hstack((
+                torch.zeros_like(x_lhs),
+                x_lhs
+                )), 
+            torch.hstack((
+                Tensor(t[0] + (t[1] - t[0]) * np.array(pyDOE.lhs(1, N))),
+                torch.zeros((N, 1))
+                ))
+            ))
+        
+        
+        #TODO: To write
+        t_lhs = torch.Tensor(t[0] + (t[1] - t[0]) * np.array(pyDOE.lhs(1, N)))
+        t_rhs = torch.Tensor(t[0] + (t[1] - t[0]) * np.array(pyDOE.lhs(1, N)))
 
-    def calculateLoss(self) -> torch.Tensor:
-        return self.loss_PDE() + self.loss_BC() +  self.loss_IC()
+        self.BC = torch.cat((
+            torch.hstack((
+                t_lhs,
+                torch.zeros_like(t_lhs)
+            )),
+            torch.hstack((
+                t_rhs,
+                torch.ones_like(t_rhs)
+            ))
+        ))
+                
+                
+                
     
-    def loss_PDE(self) -> torch.Tensor:
-        eq = self.pt - self.px2
-        return self.net.loss_criterion(eq, torch.zeros_like(eq))
-    
-    
-    
-    def loss_BC(self) -> torch.Tensor:
-        t_lhs = torch.Tensor(self.t[0] + (self.t[1] - self.t[0]) * pyDOE.lhs(1, self.N))
-        t_lhs = torch.Tensor(self.t[0] + (self.t[1] - self.t[0]) * pyDOE.lhs(1, self.N))
+    """
+        The version of concacted input, with X = (t, x).
         
-        lhs = torch.stack([t_lhs, self.x[0] * torch.ones_like(t_lhs)]).reshape((2, -1)).T
-        rhs = torch.stack([t_lhs, self.x[1] * torch.ones_like(t_lhs)]).reshape((2, -1)).T
+        X = [   (t_0, x_0), (t_0, x_1), ..., 
+                (t_1, x_0), (t_1, x_1), ...,
+                ...
+                (t_N_t, x_0), ...]
+        ##TODO: The input with high dimension x.
+    """
+    def loss(self):
+        if(self.net.PDENAME == None):
+            raise(KeyError("No instance of method."))
+            
+        #? Calculate the Differential
+        self.net.optim.zero_grad()
         
-        bc = torch.vstack([lhs ,rhs])
-        eq = self.net(bc)
-        return self.net.loss_criterion(eq, torch.zeros_like(eq))
-
+        self.X.requires_grad_()
+        self.U = self.net(self.X)
+        self.dX = torch.autograd.grad(self.U, self.X, torch.ones_like(self.U), create_graph=True, retain_graph=True)[0]
+        self.dX2 = torch.autograd.grad(self.dX, self.X, torch.ones_like(self.dX), create_graph=True, retain_graph=True)[0]
+        
+        self.pt = self.dX[:, 0]
+        self.px = self.dX[:, 1]
+        
+        self.pt2 = self.dX2[:, 0]
+        self.px2 = self.dX2[:, 1]
+        
+        #? Loss_PDE
+        eq_pde = self.pt - self.px2
+        loss_pde = self.net.loss_criterion(eq_pde, torch.zeros_like(eq_pde))
+        
+        #? Loss_BC
+        eq_bc = self.net(self.BC).reshape((-1, 1))
+        loss_bc = self.net.loss_criterion(eq_bc, torch.zeros_like(eq_bc))
+        
+        #? Loss_IC
+        eq_ic = self.net(self.IC).reshape((-1, 1)) - torch.sin(torch.pi * self.IC[:, 1]).reshape((-1, 1))
+        loss_ic = self.net.loss_criterion(eq_ic, torch.zeros_like(eq_ic))
     
-    def loss_IC(self) -> torch.Tensor:
-        x_line = torch.Tensor(self.x[0] + (self.x[1] - self.x[0])*pyDOE.lhs(1, self.N))
-        ic = torch.stack([self.t[0] * torch.ones_like(x_line), x_line]).reshape((2, -1)).T
+        #? Calculate the Loss
+        loss = loss_pde + loss_bc + loss_ic
+        loss.backward()
+                
+        self.net.loss_tensor = loss.clone()
+        self.net.cnt_Epoch = self.net.cnt_Epoch + 1 
+        self.net.loss_value = self.net.loss_tensor.item()
+        self.net.loss_history.append(self.net.loss_value)
         
-        eq = self.net(ic).reshape((-1, 1)) - torch.sin(torch.pi * x_line.reshape((-1, 1)))
-        return self.net.loss_criterion(eq, torch.zeros_like(eq))
+        #? Backward
+        return self.net.loss_tensor
     
     
     def realSolution(self, X: torch.Tensor):

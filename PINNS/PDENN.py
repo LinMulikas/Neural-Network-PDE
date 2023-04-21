@@ -15,7 +15,7 @@ from collections import OrderedDict
 """
 class PDENN(nn.Module):
     dtype_default = torch.float32
-    save_gap = 100
+    save_gap = 500
     best_Epoch = -1
     cnt_Epoch = 0
      
@@ -24,6 +24,7 @@ class PDENN(nn.Module):
     loss_history = []
     best_loss = 100.0
     loss_criterion = torch.nn.MSELoss()        
+    
     
     PDENAME: str
 
@@ -56,9 +57,9 @@ class PDENN(nn.Module):
 
         self.lbfgs = torch.optim.LBFGS(
             self.parameters(), 
-            lr=1.0, 
-            max_iter=50000, 
-            max_eval=50000, 
+            lr=0.0001, 
+            max_iter=10000, 
+            max_eval=10000, 
             history_size=50,
             tolerance_grad=1e-5, 
             tolerance_change = 1.0 * np.finfo(float).eps
@@ -66,7 +67,7 @@ class PDENN(nn.Module):
         
         self.optim = self.adam
         self.sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optim, mode = 'min', factor=0.2, patience=200)
+            self.optim, mode = 'min', factor=0.1, patience=50)
         
 
     def forward(self, input):
