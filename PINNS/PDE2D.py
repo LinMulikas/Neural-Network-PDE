@@ -176,11 +176,15 @@ class PDE2D():
         if(self.net.PDENAME == None):
             raise(KeyError("No instance of method."))
             
-        for self.net.cnt_Epoch in range(epoch):   
+        for self.net.cnt_Epoch in range(epoch):
+            self.net.optim.zero_grad()   
+            
             self.net.optim.step(self.loss)
+            
             if(self.auto_lr):
                 self.net.sched.step(self.net.loss_tensor)
             self.trainInfo()
+
 
         self.net.lbfgs.step(self.loss)
         torch.save(self, "final_model.pth")

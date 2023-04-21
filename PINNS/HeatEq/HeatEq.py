@@ -65,7 +65,7 @@ class HeatEq(PDE2D):
             raise(KeyError("No instance of method."))
             
         #? Calculate the Differential
-        self.net.optim.zero_grad()
+        
         
         self.X.requires_grad_()
         self.U = self.net(self.X)

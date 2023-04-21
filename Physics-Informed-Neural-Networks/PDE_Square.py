@@ -1,20 +1,21 @@
 import numpy as np
 import torch as tc
 
+from torch.autograd import grad
 from torch import Tensor
+from torch.nn import MSELoss
 from Net import Net
 
 from pyDOE import lhs as LHS
 from typing import Tuple
 from torch.types import Number
 
-from mpl_toolkits.mplot3d import 
 
-class PDE:
+class PDE_Square:
     net: Net
     NAME = "NONE"
     
-    def __init__(self, net, 
+    def __init__(self, net: Net, 
                  t: Tuple[int, int], x: Tuple[int, int], N: int) -> None:
         
         self.net = net
@@ -56,7 +57,11 @@ class PDE:
         
     def realSolution(self):
         raise(KeyError("No instance of method."))
-        
-        
-    def loss(self):
-        
+      
+      
+    def train(self, epoch):
+        self.net.train(epoch, self.loss)
+            
+    
+    def loss(self) -> float:
+        raise(KeyError("No instance of Method."))
