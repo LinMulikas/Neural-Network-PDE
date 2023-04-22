@@ -1,6 +1,6 @@
 import torch as tc
 from torch import Tensor
-from typing
+from typing import Tuple
 
 a = tc.Tensor([1, 1, 2])
 b = tc.Tensor([1, 2, 2])

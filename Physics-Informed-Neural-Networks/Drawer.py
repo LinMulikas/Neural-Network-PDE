@@ -1,4 +1,4 @@
-from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d.axes3d import Axes3D
 from typing import Tuple
 from torch import Tensor
 from PDE_Square import *
@@ -8,6 +8,7 @@ import torch as tc
 import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+
 class Drawer:
     N: int
     PDE: PDE_Square
@@ -16,16 +17,32 @@ class Drawer:
         self.N = N
         self.PDE = pde
 
+    def region(self):
+        pde = self.PDE
+        plt.scatter(pde.net.X[:, 0].detach().numpy(), 
+                    pde.net.X[:, 1].detach().numpy(), 
+                    linewidths=.1)
+        plt.scatter(pde.net.IC[:, 0].detach().numpy(), 
+                    pde.net.IC[:, 1].detach().numpy(), 
+                    linewidths=.1)
+        plt.scatter(pde.net.BC[:, 0].detach().numpy(), 
+                    pde.net.BC[:, 1].detach().numpy(), 
+                    linewidths=.1)
+        
+        
+        
     
     def pred(self):
         pde = self.PDE
         self.draw(self.N, pde.t, pde.x, 
                   pde.net, pde.net.loss_current.item())
         
+        
     def real(self):
         pde = self.PDE
         self.draw(self.N, pde.t, pde.x, 
                   pde.realSolution, pde.net.loss_current.item())
+    
     
     def lossHistory(self):
         x_line = np.arange(len(self.PDE.net.loss_history))
@@ -47,11 +64,13 @@ class Drawer:
         data_input = tc.vstack([T.flatten(), X.flatten()]).T
         u_pred = fn(data_input.clone().detach()).reshape((-1, 1))
         
-        U = np.reshape(u_pred.detach().numpy(), (N + 1, N + 1))
+        U = np.reshape(u_pred.detach().numpy(), (N, N))
         T = T.detach().numpy()
         X = X.detach().numpy()
         
-        ax = plt.axes(projection = '3d')
+        
+        fig = plt.figure(figsize =(14, 9))
+        ax = plt.axes(projection ='3d')
         ax.plot_surface(T, X, U, cmap='coolwarm', edgecolor='none')
         ax.set_xlabel('$t$')
         ax.set_ylabel('$x$')

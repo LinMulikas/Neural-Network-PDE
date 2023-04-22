@@ -1,31 +1,43 @@
 from PDE_Square import *
 
 class Heat(PDE_Square):
+    net: Net
+    
+    def __init__(self, 
+                 t: Tuple[int, int], 
+                 x: Tuple[int, int], 
+                 N: int) -> None:
+        super().__init__(t, x, N)
+            
             
     def loss(self):
         self.net.optim.zero_grad()
-        self.U = self.net(self.X)
-        self.dU = grad(self.U, self.X, tc.ones_like(self.U), True, True)[0]
         
-        self.pt = self.dU[:, 0]
-        self.px = self.dU[:, 1]
+        U = self.net(self.net.X_region)
+        dU = grad(U, self.net.X_region, tc.ones_like(U),
+                  True, True)[0]
+        dU2 = grad(dU, self.net.X_region, tc.ones_like(dU),
+                   True, True)[0]
         
-        self.dU2 = grad(self.dU, self.X, tc.ones_like(self.dU), True, True)[0]
-        self.pt2 = self.dU2[:, 0]
-        self.px2 = self.dU2[:, 1]
+        pt = dU[:, 0]
+        px = dU[:, 1]
+        pt2 = dU[:, 0]
+        px2 = dU[:, 1]
         
-        criterion = MSELoss()
-        eq_pde = (self.pt - self.px2).reshape((-1, 1))
-        loss_pde = criterion(eq_pde, tc.zeros_like(eq_pde))
+        #? Loss_PDE
         
-        eq_bc = self.net(self.BC)
+        loss_pde = self.net.loss_criterion(pt,px2)
         
-        loss_bc = criterion(eq_bc, tc.zeros_like(eq_bc))
-        
-        eq_ic = self.net(self.IC).reshape((-1, 1)) - tc.sin(tc.pi * self.IC[:, 1]).reshape((-1, 1))
-        loss_ic = criterion(eq_ic, tc.zeros_like(eq_ic))
-        
-        loss = loss_pde + loss_ic + loss_bc
-        self.net.loss_current = loss
+        #? Loss_BC
+        y_pred = self.net(self.net.X_data)
+        loss_data = self.net.loss_criterion(y_pred, self.net.y_data)
+    
+        #? Calculate the Loss
+        loss = loss_pde + loss_data
         loss.backward()
+        
+        self.net.cnt_Epoch = self.net.cnt_Epoch + 1 
+        self.net.loss_current = loss.clone()
+        self.net.loss_history.append(self.net.loss_current.item())
+        
         return loss

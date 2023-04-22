@@ -14,54 +14,80 @@ from torch.types import Number
 class PDE_Square:
     net: Net
     NAME = "NONE"
+    t: Tuple[int, int]
+    x: Tuple[int, int]
+    N: int
     
-    def __init__(self, net: Net, 
-                 t: Tuple[int, int], x: Tuple[int, int], N: int) -> None:
-        
-        self.net = net
+    def __init__(self, t: Tuple[int, int], x: Tuple[int, int], N: int) -> None:
         self.NAME = self.__class__.__name__
-        self.net.PDENAME = self.NAME
         self.t = t
         self.x = x
         self.N = N
         
-        X_sample = np.array(LHS(2, 4*N))
-        X_sample[:, 0] = self.t[0] + (self.t[1] - self.t[0]) * X_sample[:, 0]
-        X_sample[:, 1] = self.x[0] + (self.x[1] - self.x[0]) * X_sample[:, 1]
+    def setNet(self, net: Net):
+        self.net = net
+        self.net.PDENAME = self.NAME
         
-        self.X = Tensor(X_sample)
-        self.X.requires_grad_()
+  
+    def data_generator(self):
+        t = self.t
+        x = self.x 
+        N = self.N
+        
+        X = Tensor(LHS(2, N))
+        X[:, 0] = t[0] + (t[1] - t[0]) * X[:, 0]
+        X[:, 1] = x[0] + (x[1] - x[0]) * X[:, 1]
+      
+        X = X
+        X.requires_grad_()
         
         #? IC
-        t_ic = Tensor(self.t[0] + (self.t[1] - self.t[0]) * np.array(LHS(1, N))).reshape((-1, 1))
-        self.IC = tc.hstack(
-            [t_ic, tc.zeros_like(t_ic)]).reshape((-1, 2))
+        x_line = tc.arange(x[0], x[1], 10/N).reshape((-1, 1))
+        x_ic = Tensor(
+            np.sort(
+                x[0] + (x[1] - x[0]) * np.array(LHS(1, int(N/10))), 
+                axis=0)).reshape((-1, 1))
+        # x_ic = tc.cat((x_line, x_ic))
+                                                                        
+                                                                        
+        IC = tc.hstack((
+            t[0] * tc.ones_like(x_ic),
+            x_ic
+            )).reshape((-1, 2))
         
         #? BC
-        x_bc_lhs = Tensor(
-            self.x[0] + (self.x[1] - self.x[0]) * np.array(LHS(1, self.N)))
+        t_line = tc.arange(t[0], t[1], 10/N).reshape((-1, 1))
+
+        t_bc_lhs = Tensor(
+                np.sort(t[0] + (t[1] - t[0]) * np.array(LHS(1, int(N/10))), axis=0)).reshape((-1, 1))
         
-        bc_lhs = tc.hstack(
-            [tc.zeros_like(x_bc_lhs)]
-        ).reshape((-1, 2))
-        
-        x_bc_rhs = Tensor(
-            self.x[0] + (self.x[1] - self.x[0]) * np.array(LHS(1, self.N))
-        )
-        bc_rhs = tc.hstack(
-            [tc.ones_like(x_bc_rhs)]
-        ).reshape((-1, 2))
-        
-        self.BC = tc.cat([bc_lhs, bc_rhs])
+        # t_bc_lhs = tc.cat((t_line, t_bc_lhs))
         
         
+        t_bc_rhs = Tensor(
+                np.sort(t[0] + (t[1] - t[0]) * np.array(LHS(1, int(N/10))), axis=0)).reshape((-1, 1))
+        # t_bc_rhs = tc.cat((t_line, t_bc_rhs))
+        
+        bc_lhs = tc.hstack((
+            t_bc_lhs,
+            x[0] * tc.ones_like(t_bc_lhs)
+        )).reshape((-1, 2))
+        
+        
+        bc_rhs = tc.hstack((
+            t_bc_rhs,
+            x[1] * tc.ones_like(t_bc_rhs)
+        )).reshape((-1, 2))
+        
+        BC = tc.cat([bc_lhs, bc_rhs])
+   
+        return X, IC, BC
+     
+     
+     
     def realSolution(self):
         raise(KeyError("No instance of method."))
       
       
-    def train(self, epoch):
-        self.net.train(epoch, self.loss)
-            
-    
-    def loss(self) -> float:
+    def loss(self):
         raise(KeyError("No instance of Method."))
