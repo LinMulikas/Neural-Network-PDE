@@ -21,27 +21,29 @@ class Drawer:
         pde = self.PDE
         plt.scatter(pde.net.X[:, 0].detach().numpy(), 
                     pde.net.X[:, 1].detach().numpy(), 
-                    linewidths=.1)
+                    linewidths=.1, marker='.')
         plt.scatter(pde.net.IC[:, 0].detach().numpy(), 
                     pde.net.IC[:, 1].detach().numpy(), 
-                    linewidths=.1)
+                    linewidths=.1, marker='.')
         plt.scatter(pde.net.BC[:, 0].detach().numpy(), 
                     pde.net.BC[:, 1].detach().numpy(), 
-                    linewidths=.1)
+                    linewidths=.1, marker='.')
         
         
         
     
-    def pred(self):
+    def plot3D(self):
         pde = self.PDE
-        self.draw(self.N, pde.t, pde.x, 
+        self.draw3D(self.N, pde.t, pde.x, 
                   pde.net, pde.net.loss_current.item())
         
-        
-    def real(self):
+   
+    def plotCounter(self):
         pde = self.PDE
-        self.draw(self.N, pde.t, pde.x, 
-                  pde.realSolution, pde.net.loss_current.item())
+        self.drawCounter(self.N, pde.t, pde.x, 
+                  pde.net, pde.net.loss_current.item())
+        
+    
     
     
     def lossHistory(self):
@@ -56,7 +58,7 @@ class Drawer:
         plt.plot(x_line, history)
     
     
-    def draw(self, N: int,  t: Tuple[int, int], x: Tuple[int, int], fn, loss: float):
+    def draw3D(self, N: int,  t: Tuple[int, int], x: Tuple[int, int], fn, loss: float):
         t_line = tc.arange(t[0], t[1], 1/self.N)
         x_line = tc.arange(x[0], t[1], 1/self.N)
         T, X = tc.meshgrid(t_line, x_line)
@@ -69,9 +71,28 @@ class Drawer:
         X = X.detach().numpy()
         
         
-        fig = plt.figure(figsize =(14, 9))
+        plt.figure(figsize=(8, 8))
         ax = plt.axes(projection ='3d')
         ax.plot_surface(T, X, U, cmap='coolwarm', edgecolor='none')
         ax.set_xlabel('$t$')
         ax.set_ylabel('$x$')
         ax.set_title('Loss={}'.format(round(loss, ndigits=10)))
+        
+        
+    def drawCounter(self, N: int, t: Tuple[int, int], x: Tuple[int, int], fn, loss: float):
+        t_line = tc.arange(t[0], t[1], 1/self.N)
+        x_line = tc.arange(x[0], t[1], 1/self.N)
+        T, X = tc.meshgrid(t_line, x_line)
+        
+        data_input = tc.vstack([T.flatten(), X.flatten()]).T
+        u_pred = fn(data_input.clone().detach()).reshape((-1, 1))
+        
+        U = np.reshape(u_pred.detach().numpy(), (N, N))
+        T = T.detach().numpy()
+        X = X.detach().numpy()
+        
+        
+        plt.figure(figsize=(8, 8))
+        ax = plt.contour(T, X, U, cmap='coolwarm')
+        artists, labels = ax.legend_elements()
+        plt.legend(artists, labels, title= 'Value', fontsize= 8)

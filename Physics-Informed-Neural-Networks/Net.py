@@ -1,7 +1,9 @@
 import torch as tc
+import numpy as np
 import os
 
 from torch import nn
+from torch.autograd import grad
 from torch.autograd import grad
 from typing import Tuple, List
 from torch.types import Number
@@ -19,13 +21,24 @@ class Net(tc.nn.Module):
     IC: tc.Tensor
 
 
+    
+    #? Data
+    
+    X: tc.Tensor
+    BC: tc.Tensor 
+    IC: tc.Tensor
+
+
     #? Training parameters.
     cnt_Epoch = 0
+    best_Epoch = -1
+    save_Gap = 1000
     best_Epoch = -1
     save_Gap = 1000
     
     PDENAME: str
     
+    loss_best: tc.Tensor = tc.ones((1))
     loss_best: tc.Tensor = tc.ones((1))
     loss_current: tc.Tensor
     loss_history = []
@@ -35,9 +48,12 @@ class Net(tc.nn.Module):
                  pde_size: Tuple[int, int], 
                  shape: Tuple[int, int], 
                  data: Tuple[tc.Tensor, tc.Tensor, tc.Tensor],
+                 pde_size: Tuple[int, int], 
+                 shape: Tuple[int, int], 
+                 data: Tuple[tc.Tensor, tc.Tensor, tc.Tensor],
                  loadFile:str = '',
                  lr: float = 1e-2,
-                 act = nn.Softsign,
+                 act = nn.GELU,
                  auto_lr = True,) -> None:
         
         super().__init__()
@@ -52,6 +68,10 @@ class Net(tc.nn.Module):
         self.X = data[0]
         self.IC = data[1]
         self.BC = data[2]
+        
+        self.X.requires_grad_()
+        self.IC.requires_grad_()
+        self.BC.requires_grad_()
         
         self.lr = lr
         self.auto_lr = auto_lr
@@ -95,6 +115,7 @@ class Net(tc.nn.Module):
     
     def forward(self, x):
         return self.model(x)
+        return self.model(x)
     
     
     def train(self, epoch):
@@ -116,25 +137,25 @@ class Net(tc.nn.Module):
         X.requires_grad_()
         
         U = self(X)
-        dU = grad(U, X, tc.ones_like(U),
-                  True, True)[0]
-        dU2 = grad(dU, X, tc.ones_like(dU),
-                   True, True)[0]
+        dU = grad(U, X, tc.ones_like(U), True, True)[0]
         
         pt = dU[:, 0]
         px = dU[:, 1]
-        pt2 = dU2[:, 0]
-        px2 = dU2[:, 1]
+        
+        ptt = grad(pt, X[:, 0], tc.ones_like(pt), True, True)[0]
+        ptx = grad(pt, X[:, 1], tc.ones_like(pt), True, True)[0]
+        pxx = grad(px, X[:, 0], tc.ones_like(px), True, True)[0]
+        
         
         #? Loss_PDE
         
-        loss_pde = self.loss_criterion(pt, px2)
+        loss_pde = self.loss_criterion(pt, pxx)
         
         #? Loss_IC
         eq_ic = self(self.IC)
         loss_ic = self.loss_criterion(
             eq_ic, 
-            tc.sin(tc.pi * self.IC[:, 1].reshape((-1, 1))))
+            tc.sin(np.pi * self.IC[:, 1].reshape((-1, 1))))
         
         
         #? Loss_BC
@@ -146,7 +167,7 @@ class Net(tc.nn.Module):
     
         
         #? Calculate the Loss
-        loss = 8 * loss_pde  +  loss_ic +  loss_bc
+        loss = 2 * loss_pde  +  loss_ic +  loss_bc
         loss.backward()
         
         self.cnt_Epoch = self.cnt_Epoch + 1 
