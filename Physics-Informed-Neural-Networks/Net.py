@@ -48,9 +48,6 @@ class Net(tc.nn.Module):
                  pde_size: Tuple[int, int], 
                  shape: Tuple[int, int], 
                  data: Tuple[tc.Tensor, tc.Tensor, tc.Tensor],
-                 pde_size: Tuple[int, int], 
-                 shape: Tuple[int, int], 
-                 data: Tuple[tc.Tensor, tc.Tensor, tc.Tensor],
                  loadFile:str = '',
                  lr: float = 1e-2,
                  act = nn.GELU,
@@ -138,13 +135,10 @@ class Net(tc.nn.Module):
         
         U = self(X)
         dU = grad(U, X, tc.ones_like(U), True, True)[0]
+        dU2 = grad(dU, X, tc.ones_like(dU), True, True)[0]
         
-        pt = dU[:, 0]
-        px = dU[:, 1]
-        
-        ptt = grad(pt, X[:, 0], tc.ones_like(pt), True, True)[0]
-        ptx = grad(pt, X[:, 1], tc.ones_like(pt), True, True)[0]
-        pxx = grad(px, X[:, 0], tc.ones_like(px), True, True)[0]
+        pt = dU[:, 0].reshape((-1, 1))
+        pxx = dU2[:, 1].reshape((-1, 1))
         
         
         #? Loss_PDE
@@ -167,7 +161,7 @@ class Net(tc.nn.Module):
     
         
         #? Calculate the Loss
-        loss = 2 * loss_pde  +  loss_ic +  loss_bc
+        loss = loss_pde  +  loss_ic +  loss_bc
         loss.backward()
         
         self.cnt_Epoch = self.cnt_Epoch + 1 
