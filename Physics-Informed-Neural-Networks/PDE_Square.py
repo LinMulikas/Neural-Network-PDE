@@ -10,6 +10,7 @@ from pyDOE import lhs as LHS
 from typing import Tuple
 from torch.types import Number
 
+tc.set_default_device('cuda')
 
 class PDE_Square:
     net: Net
@@ -19,6 +20,7 @@ class PDE_Square:
     N: int
     
     def __init__(self, t: Tuple[int, int], x: Tuple[int, int], N: int) -> None:
+        tc.set_default_device('cuda')
         self.NAME = self.__class__.__name__
         self.t = t
         self.x = x
@@ -30,6 +32,7 @@ class PDE_Square:
         
   
     def data_generator(self):
+        tc.set_default_device('cuda')
         t = self.t
         x = self.x 
         N = self.N
@@ -42,11 +45,13 @@ class PDE_Square:
         X.requires_grad_()
         
         #? IC
-        x_line = tc.arange(x[0], x[1], 10/N).reshape((-1, 1))
-        x_ic = Tensor(
-            np.sort(
-                x[0] + (x[1] - x[0]) * np.array(LHS(1, int(N/10))), 
-                axis=0)).reshape((-1, 1))
+        # x_line = tc.arange(x[0], x[1], 10/N).reshape((-1, 1))
+        # x_ic = Tensor(
+        #     np.sort(
+        #         x[0] + (x[1] - x[0]) * np.array(LHS(1, int(N/5))), 
+        #         axis=0)).reshape((-1, 1))
+        
+        x_ic = tc.arange(x[0], x[1], 5/N).reshape((-1, 1))
         # x_ic = tc.cat((x_line, x_ic))
                                                                         
                                                                         
@@ -56,27 +61,27 @@ class PDE_Square:
             )).reshape((-1, 2))
         
         #? BC
-        t_line = tc.arange(t[0], t[1], 10/N).reshape((-1, 1))
-
-        t_bc_lhs = Tensor(
-                np.sort(t[0] + (t[1] - t[0]) * np.array(LHS(1, int(N/10))), axis=0)).reshape((-1, 1))
         
         # t_bc_lhs = tc.cat((t_line, t_bc_lhs))
         
+        #? t: uniform
         
-        t_bc_rhs = Tensor(
-                np.sort(t[0] + (t[1] - t[0]) * np.array(LHS(1, int(N/10))), axis=0)).reshape((-1, 1))
+        t_line = tc.arange(t[0], t[1], 5/N).reshape((-1, 1))
+        
+        
+        # t_line = Tensor(
+        #         np.sort(t[0] + (t[1] - t[0]) * np.array(LHS(1, int(N/5))), axis=0)).reshape((-1, 1))
         # t_bc_rhs = tc.cat((t_line, t_bc_rhs))
         
         bc_lhs = tc.hstack((
-            t_bc_lhs,
-            x[0] * tc.ones_like(t_bc_lhs)
+            t_line,
+            x[0] * tc.ones_like(t_line)
         )).reshape((-1, 2))
         
         
         bc_rhs = tc.hstack((
-            t_bc_rhs,
-            x[1] * tc.ones_like(t_bc_rhs)
+            t_line,
+            x[1] * tc.ones_like(t_line)
         )).reshape((-1, 2))
         
         BC = tc.cat([bc_lhs, bc_rhs])

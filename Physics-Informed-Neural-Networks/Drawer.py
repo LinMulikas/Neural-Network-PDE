@@ -8,6 +8,7 @@ import torch as tc
 import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+tc.set_default_device('cuda')
 
 class Drawer:
     N: int
@@ -19,23 +20,22 @@ class Drawer:
 
     def region(self):
         pde = self.PDE
-        plt.scatter(pde.net.X[:, 0].detach().numpy(), 
-                    pde.net.X[:, 1].detach().numpy(), 
-                    linewidths=.1, marker='.')
-        plt.scatter(pde.net.IC[:, 0].detach().numpy(), 
-                    pde.net.IC[:, 1].detach().numpy(), 
-                    linewidths=.1, marker='.')
-        plt.scatter(pde.net.BC[:, 0].detach().numpy(), 
-                    pde.net.BC[:, 1].detach().numpy(), 
-                    linewidths=.1, marker='.')
         
-        
+        plt.scatter(Tensor.cpu(pde.net.X[:, 0]).detach().numpy(), 
+                    Tensor.cpu(pde.net.X[:, 1]).detach().numpy(), 
+                    linewidths=.1, marker='.')
+        plt.scatter(Tensor.cpu(pde.net.IC[:, 0]).detach().numpy(), 
+                    Tensor.cpu(pde.net.IC[:, 1]).detach().numpy(), 
+                    linewidths=.1, marker='.')
+        plt.scatter(Tensor.cpu(pde.net.BC[:, 0]).detach().numpy(), 
+                    Tensor.cpu(pde.net.BC[:, 1]).detach().numpy(), 
+                    linewidths=.1, marker='.')
         
     
-    def plot3D(self):
+    def plot(self, fn):
         pde = self.PDE
         self.draw3D(self.N, pde.t, pde.x, 
-                  pde.net, pde.net.loss_current.item())
+                  fn, pde.net.loss_current.item())
         
    
     def plotCounter(self):
@@ -45,10 +45,10 @@ class Drawer:
         
     
     
-    
     def lossHistory(self):
-        x_line = np.arange(len(self.PDE.net.loss_history))
-        plt.plot(x_line, self.PDE.net.loss_history) 
+        history = self.PDE.net.loss_history
+        x_line = np.arange(len(history))
+        plt.plot(x_line, history)
     
     
     
@@ -66,9 +66,9 @@ class Drawer:
         data_input = tc.vstack([T.flatten(), X.flatten()]).T
         u_pred = fn(data_input.clone().detach()).reshape((-1, 1))
         
-        U = np.reshape(u_pred.detach().numpy(), (N, N))
-        T = T.detach().numpy()
-        X = X.detach().numpy()
+        U = np.reshape(Tensor.cpu(u_pred).detach().numpy(), (N, N))
+        T = Tensor.cpu(T).detach().numpy()
+        X = Tensor.cpu(X).detach().numpy()
         
         
         plt.figure(figsize=(8, 8))
@@ -87,12 +87,12 @@ class Drawer:
         data_input = tc.vstack([T.flatten(), X.flatten()]).T
         u_pred = fn(data_input.clone().detach()).reshape((-1, 1))
         
-        U = np.reshape(u_pred.detach().numpy(), (N, N))
-        T = T.detach().numpy()
-        X = X.detach().numpy()
+        U = np.reshape(Tensor.cpu(u_pred).detach().numpy(), (N, N))
+        T = Tensor.cpu(T).detach().numpy()
+        X = Tensor.cpu(X).detach().numpy()
         
         
         plt.figure(figsize=(8, 8))
-        ax = plt.contour(T, X, U, cmap='coolwarm')
+        ax = plt.contour(T, X, U, cmap='cool')
         artists, labels = ax.legend_elements()
         plt.legend(artists, labels, title= 'Value', fontsize= 8)

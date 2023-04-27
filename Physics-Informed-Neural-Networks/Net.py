@@ -8,6 +8,8 @@ from torch.autograd import grad
 from typing import Tuple, List
 from torch.types import Number
 
+device = tc.device('cuda')
+
 class Net(tc.nn.Module):
     #? Net parameters.
     depth: int
@@ -32,14 +34,11 @@ class Net(tc.nn.Module):
     #? Training parameters.
     cnt_Epoch = 0
     best_Epoch = -1
-    save_Gap = 1000
-    best_Epoch = -1
-    save_Gap = 1000
+    save_Gap = 5000
     
     PDENAME: str
     
-    loss_best: tc.Tensor = tc.ones((1))
-    loss_best: tc.Tensor = tc.ones((1))
+    loss_best: tc.Tensor = tc.ones((1)).to(device)
     loss_current: tc.Tensor
     loss_history = []
     loss_criterion = tc.nn.MSELoss(reduce=True, reduction='mean')  
@@ -50,21 +49,17 @@ class Net(tc.nn.Module):
                  data: Tuple[tc.Tensor, tc.Tensor, tc.Tensor],
                  loadFile:str = '',
                  lr: float = 1e-2,
-                 act = nn.GELU,
+                 act = nn.Tanh,
                  auto_lr = True,) -> None:
         
         super().__init__()
         
-        if tc.cuda.is_available():
-            self.device = tc.device('cuda')
-        else:
-            self.device = tc.device('cpu')
         
         #? Data generator.
         
-        self.X = data[0]
-        self.IC = data[1]
-        self.BC = data[2]
+        self.X = data[0].to(device)
+        self.IC = data[1].to(device)
+        self.BC = data[2].to(device)
         
         self.X.requires_grad_()
         self.IC.requires_grad_()
@@ -109,9 +104,9 @@ class Net(tc.nn.Module):
         if(loadFile != ''):
             self.loadDict(loadFile)
             
+            
     
     def forward(self, x):
-        return self.model(x)
         return self.model(x)
     
     
@@ -135,15 +130,14 @@ class Net(tc.nn.Module):
         
         U = self(X)
         dU = grad(U, X, tc.ones_like(U), True, True)[0]
-        dU2 = grad(dU, X, tc.ones_like(dU), True, True)[0]
         
         pt = dU[:, 0].reshape((-1, 1))
-        pxx = dU2[:, 1].reshape((-1, 1))
+        px = dU[:, 1].reshape((-1, 1))
         
         
         #? Loss_PDE
         
-        loss_pde = self.loss_criterion(pt, pxx)
+        loss_pde = self.loss_criterion(pt, tc.square(px))
         
         #? Loss_IC
         eq_ic = self(self.IC)
@@ -161,7 +155,7 @@ class Net(tc.nn.Module):
     
         
         #? Calculate the Loss
-        loss = loss_pde  +  loss_ic +  loss_bc
+        loss = loss_pde + 5 * loss_ic + 5 * loss_bc
         loss.backward()
         
         self.cnt_Epoch = self.cnt_Epoch + 1 
@@ -175,6 +169,7 @@ class Net(tc.nn.Module):
         
     def info(self):
         #? Save Best
+        
         if(tc.equal(self.loss_best, tc.ones((1)))):
             self.loss_best = self.loss_current.clone()
             self.best_Epoch = self.cnt_Epoch
@@ -246,15 +241,16 @@ class Net(tc.nn.Module):
         filePath = os.path.join(rootPath, fileName)
         
         data = tc.load(filePath)
-                
+        
         self.load_state_dict(data['dict'], True)
+        self.loss_current = data['loss_current']
         self.best_Epoch = data['best_Epoch']
         self.loss_best = data['loss_best']
         self.cnt_Epoch = data['cnt_Epoch']
         self.loss_history = data['loss_history']
         
         if(fileName == 'models/best.pt'):
-            self.loss_current = self.loss_best
+            self.loss_best = self.loss_current
     
         
     def saveBest(self):
@@ -266,6 +262,7 @@ class Net(tc.nn.Module):
         filePath = 'models'
         
         data = {'dict': self.state_dict(), 
+                'loss_current': self.loss_current,
                 'loss_best': self.loss_best,
                 'best_Epoch': self.best_Epoch,
                 'cnt_Epoch': self.cnt_Epoch,
