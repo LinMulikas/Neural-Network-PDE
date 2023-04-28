@@ -86,6 +86,7 @@ class Net(tc.nn.Module):
             input,
             *hidden,
             output,
+            nn.Sigmoid()
         )
         
         #? Build the optimizer.
