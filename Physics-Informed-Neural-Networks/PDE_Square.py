@@ -37,21 +37,31 @@ class PDE_Square:
         x = self.x 
         N = self.N
         
+        #? X: LHS
         X = Tensor(LHS(2, N))
         X[:, 0] = t[0] + (t[1] - t[0]) * X[:, 0]
         X[:, 1] = x[0] + (x[1] - x[0]) * X[:, 1]
-      
-        X = X
+        
+        #? X: Density
+        # t_1 = tc.arange(0, 1/3, 1/(3*N/10)).reshape((-1, 1))
+        # t_2 = tc.arange(1/3, 2/3, 1/(3*N/50)).reshape((-1, 1))
+        # t_3 = tc.arange(2/3, 1, 1/(3*N/100)).reshape((-1, 1))
+        
+        # t_density = tc.cat([t_1, t_2, t_3]).reshape((-1,))
+        
+        # x_line = tc.arange(0, 1, 1/len(t_density)).reshape((-1,))
+        
+        # X = tc.stack(tc.meshgrid(t_density, x_line)).reshape((2, -1)).T
+        
         X.requires_grad_()
         
         #? IC
         # x_line = tc.arange(x[0], x[1], 10/N).reshape((-1, 1))
-        # x_ic = Tensor(
-        #     np.sort(
-        #         x[0] + (x[1] - x[0]) * np.array(LHS(1, int(N/5))), 
-        #         axis=0)).reshape((-1, 1))
+        # x_ic = Tensor(np.sort(x[0] + (x[1] - x[0]) * np.array(LHS(1, int(N/5))), axis=0)).reshape((-1, 1))
         
         x_ic = tc.arange(x[0], x[1], 5/N).reshape((-1, 1))
+        # x_ic = x_ic[1:]
+        # x_ic = x_ic[:-1]
         # x_ic = tc.cat((x_line, x_ic))
                                                                         
                                                                         
@@ -68,24 +78,24 @@ class PDE_Square:
         
         t_line = tc.arange(t[0], t[1], 5/N).reshape((-1, 1))
         
+        #? t: LHS
         
-        # t_line = Tensor(
-        #         np.sort(t[0] + (t[1] - t[0]) * np.array(LHS(1, int(N/5))), axis=0)).reshape((-1, 1))
+        # t_line = Tensor(np.sort(t[0] + (t[1] - t[0]) * np.array(LHS(1, int(N/5))), axis=0)).reshape((-1, 1))
         # t_bc_rhs = tc.cat((t_line, t_bc_rhs))
         
         bc_lhs = tc.hstack((
-            t_line,
-            x[0] * tc.ones_like(t_line)
+            t_line[1:],
+            x[0] * tc.ones_like(t_line[1:])
         )).reshape((-1, 2))
         
         
         bc_rhs = tc.hstack((
-            t_line,
-            x[1] * tc.ones_like(t_line)
+            t_line[1:],
+            x[1] * tc.ones_like(t_line[1:])
         )).reshape((-1, 2))
         
         BC = tc.cat([bc_lhs, bc_rhs])
-   
+        
         return X, IC, BC
      
      

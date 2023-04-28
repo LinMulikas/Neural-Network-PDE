@@ -5,8 +5,9 @@ import os
 from torch import nn
 from torch.autograd import grad
 from torch.autograd import grad
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 from torch.types import Number
+from torch.nn import Module
 
 device = tc.device('cuda')
 
@@ -49,7 +50,7 @@ class Net(tc.nn.Module):
                  data: Tuple[tc.Tensor, tc.Tensor, tc.Tensor],
                  loadFile:str = '',
                  lr: float = 1e-2,
-                 act = nn.Tanh,
+                 act = nn.Tanhshrink,
                  auto_lr = True,) -> None:
         
         super().__init__()
@@ -72,17 +73,17 @@ class Net(tc.nn.Module):
         self.width = shape[1]
         
         input = nn.Linear(pde_size[0], self.width)
-        hiden = []
+        hidden = []
         output = nn.Linear(self.width, pde_size[1])
         
         for i in range(self.depth):
-            hiden.append(nn.Linear(self.width, self.width))
-            hiden.append(act())
+            hidden.append(nn.Linear(self.width, self.width))
+            hidden.append(act())
         
         self.model = nn.Sequential(
             input,
-            *hiden,
-            output
+            *hidden,
+            output,
         )
         
         #? Build the optimizer.
@@ -96,14 +97,29 @@ class Net(tc.nn.Module):
             tolerance_grad=1e-5,
             tolerance_change=1e-9
         )
-        self.optim = self.adam
         self.sched = tc.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optim, mode = 'min', factor=0.1, patience=100)
+            self.adam, mode = 'min', factor=0.1, patience=100)
         
         #TODO: Load best has no current loss
         if(loadFile != ''):
             self.loadDict(loadFile)
             
+           
+    def getWeights(self):
+        modules = self.model._modules
+        module_in = list(modules.items())[0]
+        weight_in = (module_in[1].weight)
+        
+        module_out = list(modules.items())[-1]
+        
+        weight_hidden = list(self.model._modules.items())
+        weight_hidden = weight_hidden[1:]
+        weight_hidden = weight_hidden[:-1]
+        
+        weight_hidden = tc.zeros((self.depth, self.width))
+        
+        
+           
             
     
     def forward(self, x):
@@ -112,20 +128,15 @@ class Net(tc.nn.Module):
     
     def train(self, epoch):
         for self.cnt_Epoch in range(epoch):
-            self.optim.step(self.loss)
-            # if(self.auto_lr):
-            #     self.sched.step(self.loss_current)
+            self.adam.zero_grad()
+            self.adam.step(self.loss)
+            self.sched.step(self.loss_current)
                 
             self.info()
     
     def loss(self):
-        self.optim.zero_grad()
         
-        X = tc.cat((
-            self.X,
-            self.BC,
-            self.IC
-        ))
+        X = self.X
         X.requires_grad_()
         
         U = self(X)
@@ -141,25 +152,23 @@ class Net(tc.nn.Module):
         
         #? Loss_IC
         eq_ic = self(self.IC)
-        loss_ic = self.loss_criterion(
-            eq_ic, 
-            tc.sin(np.pi * self.IC[:, 1].reshape((-1, 1))))
-        
+        y_ic = tc.sin(tc.pi * self.IC[:, 1]).reshape((-1, 1))
         
         #? Loss_BC
         eq_bc = self(self.BC)
-        loss_bc = self.loss_criterion(
-            eq_bc, 
-            tc.zeros_like(eq_bc))
+        y_bc = tc.zeros_like(eq_bc)
         
-    
+        eq_data = tc.cat([eq_ic, eq_bc])
+        y_pred = tc.cat([y_ic, y_bc])
+        
+        loss_data = self.loss_criterion(eq_data, y_pred)
         
         #? Calculate the Loss
-        loss = loss_pde + 5 * loss_ic + 5 * loss_bc
+        loss = loss_pde + loss_data
         loss.backward()
         
-        self.cnt_Epoch = self.cnt_Epoch + 1 
         self.loss_current = loss.clone()
+        self.cnt_Epoch = self.cnt_Epoch + 1 
         self.loss_history.append(self.loss_current.item())
         
         return loss
@@ -249,9 +258,6 @@ class Net(tc.nn.Module):
         self.cnt_Epoch = data['cnt_Epoch']
         self.loss_history = data['loss_history']
         
-        if(fileName == 'models/best.pt'):
-            self.loss_best = self.loss_current
-    
         
     def saveBest(self):
         self.saveDict("best.pt")
@@ -271,3 +277,10 @@ class Net(tc.nn.Module):
         
         
         tc.save(data, os.path.join(rootPath, filePath, fileName))
+        
+        
+    def moveTo(self, device):
+        self.to(device)
+        self.X.to(device)
+        self.IC.to(device)
+        self.BC.to(device)
