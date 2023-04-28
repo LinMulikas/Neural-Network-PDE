@@ -60,8 +60,8 @@ class PDE_Square:
         # x_ic = Tensor(np.sort(x[0] + (x[1] - x[0]) * np.array(LHS(1, int(N/5))), axis=0)).reshape((-1, 1))
         
         x_ic = tc.arange(x[0], x[1], 5/N).reshape((-1, 1))
-        # x_ic = x_ic[1:]
-        # x_ic = x_ic[:-1]
+        x_ic = x_ic[1:]
+        x_ic = x_ic[:-1]
         # x_ic = tc.cat((x_line, x_ic))
                                                                         
                                                                         

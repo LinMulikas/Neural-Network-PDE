@@ -9,6 +9,8 @@ from typing import Tuple, List, Dict
 from torch.types import Number
 from torch.nn import Module
 
+from pyDOE import lhs as LHS
+
 device = tc.device('cuda')
 
 class Net(tc.nn.Module):
@@ -50,7 +52,7 @@ class Net(tc.nn.Module):
                  data: Tuple[tc.Tensor, tc.Tensor, tc.Tensor],
                  loadFile:str = '',
                  lr: float = 1e-2,
-                 act = nn.Tanhshrink,
+                 act = nn.Tanh,
                  auto_lr = True,) -> None:
         
         super().__init__()
@@ -135,36 +137,46 @@ class Net(tc.nn.Module):
             self.info()
     
     def loss(self):
+        X_rand = tc.Tensor(LHS(2, 1000)).reshape((-1, 2)).to(device)
         
-        X = self.X
+        #? Use the fixed X.
+        X = tc.cat([
+            self.X,
+            self.BC,
+            X_rand
+        ])
         X.requires_grad_()
         
         U = self(X)
         dU = grad(U, X, tc.ones_like(U), True, True)[0]
-        
         pt = dU[:, 0].reshape((-1, 1))
-        px = dU[:, 1].reshape((-1, 1))
+        
+        dU2 = grad(dU, X, tc.ones_like(dU), True, True)[0]
+        pxx = dU2[:, 1].reshape((-1, 1))
         
         
         #? Loss_PDE
         
-        loss_pde = self.loss_criterion(pt, tc.square(px))
+        loss_pde = self.loss_criterion(pt, tc.square(pxx))
         
         #? Loss_IC
         eq_ic = self(self.IC)
         y_ic = tc.sin(tc.pi * self.IC[:, 1]).reshape((-1, 1))
+        loss_ic = self.loss_criterion(eq_ic, y_ic)
         
         #? Loss_BC
         eq_bc = self(self.BC)
         y_bc = tc.zeros_like(eq_bc)
+        loss_bc = self.loss_criterion(eq_bc, y_bc)
         
         eq_data = tc.cat([eq_ic, eq_bc])
         y_pred = tc.cat([y_ic, y_bc])
         
+        
         loss_data = self.loss_criterion(eq_data, y_pred)
         
         #? Calculate the Loss
-        loss = loss_pde + loss_data
+        loss = loss_pde + loss_ic + loss_bc
         loss.backward()
         
         self.loss_current = loss.clone()
