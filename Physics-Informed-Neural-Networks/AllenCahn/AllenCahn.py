@@ -4,8 +4,8 @@ class AllenCahn(PDE_Square):
     net: Net
     
     def __init__(self, 
-                 t: Tuple[int, int], 
-                 x: Tuple[int, int], 
+                 t: Tuple[float, float], 
+                 x: Tuple[float, float], 
                  N: int) -> None:
         super().__init__(t, x, N)
        

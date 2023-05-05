@@ -15,11 +15,11 @@ tc.set_default_device('cuda')
 class PDE_Square:
     net: Net
     NAME = "NONE"
-    t: Tuple[int, int]
-    x: Tuple[int, int]
+    t: Tuple[float, float]
+    x: Tuple[float, float]
     N: int
     
-    def __init__(self, t: Tuple[int, int], x: Tuple[int, int], N: int) -> None:
+    def __init__(self, t: Tuple[float, float], x: Tuple[float, float], N: int) -> None:
         tc.set_default_device('cuda')
         self.NAME = self.__class__.__name__
         self.t = t
