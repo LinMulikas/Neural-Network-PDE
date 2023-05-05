@@ -59,8 +59,8 @@ class Drawer:
     
     
     def draw3D(self, N: int,  t: Tuple[int, int], x: Tuple[int, int], fn, loss: float):
-        t_line = tc.arange(t[0], t[1], 1/self.N)
-        x_line = tc.arange(x[0], t[1], 1/self.N)
+        t_line = tc.arange(t[0], t[1], (t[1] - t[0])/self.N)
+        x_line = tc.arange(x[0], x[1], (x[1] - x[0])/self.N)
         T, X = tc.meshgrid(t_line, x_line)
         
         data_input = tc.vstack([T.flatten(), X.flatten()]).T
@@ -80,8 +80,8 @@ class Drawer:
         
         
     def drawCounter(self, N: int, t: Tuple[int, int], x: Tuple[int, int], fn, loss: float):
-        t_line = tc.arange(t[0], t[1], 1/self.N)
-        x_line = tc.arange(x[0], t[1], 1/self.N)
+        t_line = tc.arange(t[0], t[1], (t[1] - t[0])/self.N)
+        x_line = tc.arange(x[0], x[1], (x[1] - x[0])/self.N)
         T, X = tc.meshgrid(t_line, x_line)
         
         data_input = tc.vstack([T.flatten(), X.flatten()]).T

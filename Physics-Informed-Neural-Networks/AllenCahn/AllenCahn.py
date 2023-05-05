@@ -25,11 +25,13 @@ class AllenCahn(PDE_Square):
         
         #? Loss_PDE
         
-        loss_pde = self.net.loss_criterion(pt, pxx)
+        epsilon = 0.02
+        loss_pde = self.net.loss_criterion(
+            pt - pxx + (1/epsilon**2)*(tc.pow(U, 3) - U), tc.ones_like(U))
         
         #? Loss_IC
         eq_ic = self.net(self.net.IC)
-        y_ic = tc.sin(np.pi * self.net.IC[:, 1]).reshape((-1, 1))
+        y_ic = tc.cos(np.pi * self.net.IC[:, 1]).reshape((-1, 1))
         loss_ic = self.net.loss_criterion(eq_ic, y_ic)
         
         #? Loss_BC
