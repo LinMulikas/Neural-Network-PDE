@@ -26,6 +26,10 @@ class PDE_Square:
         self.x = x
         self.N = N
         
+    def train(self, epoch):
+        self.net.train(epoch, self.loss)
+        
+        
     def setNet(self, net: Net):
         self.net = net
         self.net.PDENAME = self.NAME
@@ -99,6 +103,7 @@ class PDE_Square:
         return X, IC, BC
      
      
+
      
     def realSolution(self):
         raise(KeyError("No instance of method."))

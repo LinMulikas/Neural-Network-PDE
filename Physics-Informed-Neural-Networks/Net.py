@@ -11,9 +11,9 @@ from torch.nn import Module
 
 from pyDOE import lhs as LHS
 
-device = tc.device('cuda')
-
 class Net(tc.nn.Module):
+    device = tc.device('cuda')
+    
     #? Net parameters.
     depth: int
     width: int
@@ -60,9 +60,9 @@ class Net(tc.nn.Module):
         
         #? Data generator.
         
-        self.X = data[0].to(device)
-        self.IC = data[1].to(device)
-        self.BC = data[2].to(device)
+        self.X = data[0].to(self.device)
+        self.IC = data[1].to(self.device)
+        self.BC = data[2].to(self.device)
         
         self.X.requires_grad_()
         self.IC.requires_grad_()
@@ -129,55 +129,14 @@ class Net(tc.nn.Module):
         return self.model(x)
     
     
-    def train(self, epoch):
+    def train(self, epoch, loss_fn):
         for self.cnt_Epoch in range(epoch):
             self.adam.zero_grad()
-            self.adam.step(self.loss)
+            self.adam.step(loss_fn)
             self.sched.step(self.loss_current)
                 
             self.info()
-    
-    def loss(self):
-        X_rand = tc.Tensor(LHS(2, 1000)).reshape((-1, 2)).to(device)
-        
-        #? Use the fixed X.
-        X = self.X
-        X.requires_grad_()
-        
-        U = self(X)
-        dU = grad(U, X, tc.ones_like(U), True, True)[0]
-        pt = dU[:, 0].reshape((-1, 1))
-        
-        dU2 = grad(dU[:, 1], X, tc.ones_like(dU[:, 1]), True, True)[0]
-        pxx = dU2[:, 1].reshape((-1, 1))
-        
-        
-        #? Loss_PDE
-        
-        loss_pde = self.loss_criterion(pt, pxx)
-        
-        #? Loss_IC
-        eq_ic = self(self.IC)
-        y_ic = tc.sin(np.pi * self.IC[:, 1]).reshape((-1, 1))
-        loss_ic = self.loss_criterion(eq_ic, y_ic)
-        
-        #? Loss_BC
-        eq_bc = self(self.BC)
-        y_bc = tc.zeros_like(eq_bc)
-        loss_bc = self.loss_criterion(eq_bc, y_bc)
-        
-        #? Calculate the Loss
-        loss = loss_pde + loss_ic + loss_bc
-        loss.backward()
-        
-        self.loss_current = loss.clone()
-        self.cnt_Epoch = self.cnt_Epoch + 1 
-        self.loss_history.append(self.loss_current.item())
-        
-        return loss
-    
-    
-    
+
         
     def info(self):
         #? Save Best
