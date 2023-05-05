@@ -108,7 +108,7 @@ class Net(tc.nn.Module):
             self.loadDict(loadFile)
             
            
-    def getWeights(self):
+    def getWeights(self): 
         modules = self.model._modules
         module_in = list(modules.items())[0]
         weight_in = (module_in[1].weight)
