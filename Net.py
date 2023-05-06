@@ -12,7 +12,8 @@ from torch.nn import Module
 from pyDOE import lhs as LHS
 
 class Net(tc.nn.Module):
-    device = tc.device('cuda')
+    device = tc.device('cuda') if(tc.cuda.is_available()) else tc.device('cpu')
+        
     
     #? Net parameters.
     depth: int
@@ -211,7 +212,7 @@ class Net(tc.nn.Module):
         rootPath = os.getcwd()
         filePath = os.path.join(rootPath, fileName)
         
-        data = tc.load(filePath)
+        data = tc.load(filePath, map_location=self.device)
         
         self.load_state_dict(data['dict'], True)
         self.loss_current = data['loss_current']

@@ -10,8 +10,6 @@ from pyDOE import lhs as LHS
 from typing import Tuple
 from torch.types import Number
 
-tc.set_default_device('cuda')
-
 class PDE_Square:
     net: Net
     NAME = "NONE"
@@ -20,7 +18,8 @@ class PDE_Square:
     N: int
     
     def __init__(self, t: Tuple[float, float], x: Tuple[float, float], N: int) -> None:
-        tc.set_default_device('cuda')
+        device = tc.device('cuda') if(tc.cuda.is_available()) else tc.device('cpu')
+        tc.set_default_device(device)
         self.NAME = self.__class__.__name__
         self.t = t
         self.x = x
@@ -36,7 +35,6 @@ class PDE_Square:
         
   
     def data_generator(self):
-        tc.set_default_device('cuda')
         t = self.t
         x = self.x 
         N = self.N
