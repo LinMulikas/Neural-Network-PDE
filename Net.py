@@ -1,4 +1,5 @@
 import torch as tc
+from torch import Tensor
 import numpy as np
 import os
 
@@ -9,6 +10,7 @@ from typing import Tuple, List, Dict
 from torch.types import Number
 from torch.nn import Module
 
+
 from pyDOE import lhs as LHS
 
 class Net(tc.nn.Module):
@@ -16,6 +18,8 @@ class Net(tc.nn.Module):
         
     
     #? Net parameters.
+    input_size: int
+    output_size: int
     depth: int
     width: int
     lr: float = 1e-2
@@ -58,7 +62,7 @@ class Net(tc.nn.Module):
         
         super().__init__()
         
-        
+        self.act = act
         #? Data generator.
         
         self.X = data[0].to(self.device)
@@ -75,6 +79,8 @@ class Net(tc.nn.Module):
         self.depth = shape[0]
         self.width = shape[1]
         
+        self.input_size = pde_size[0]
+        self.output_size = pde_size[1]
         input = nn.Linear(pde_size[0], self.width)
         hidden = []
         output = nn.Linear(self.width, pde_size[1])
@@ -85,9 +91,9 @@ class Net(tc.nn.Module):
         
         self.model = nn.Sequential(
             input,
+            self.act(),
             *hidden,
-            output,
-            nn.Sigmoid()
+            output
         )
         
         #? Build the optimizer.
@@ -106,28 +112,139 @@ class Net(tc.nn.Module):
         
         #TODO: Load best has no current loss
         if(loadFile != ''):
-            self.loadDict(loadFile)
+            self.loadDict(loadFile)        
+        
+
+    def difTheta(self, X: tc.Tensor):
+        X.requires_grad_()
+        U = self(X)
+        U_grad = grad(U, self.model.parameters(), tc.ones_like(U), True, True)
+        vec = []
+        
+        for i in range(len(U_grad)):
+            vec.append(tc.Tensor(U_grad[i]).reshape((-1, 1)))
             
+        return tc.cat(vec)
+        
+        
+    def paraList(self):
+
+        biasList = []
+        
+        layersList = list(self.model._modules.items())
+        layersModule: List[Module] = []
+        
+        for i in range(2 * (self.depth + 1) + 1):
+            layersModule.append(layersList[i][1])
+            
+            
+        biasList: List[Tensor] = []
+        weightsList: List[Tensor] = []
+        
+        for i in range(len(layersModule)):
+            if(i % 2 == 1):
+                continue 
+            else:
+                layer = layersModule[i]
+                biasList.append(tc.Tensor(layer.bias).reshape((-1, 1)))
+                weightsList.append(tc.Tensor(layer.weight).reshape((-1, 1)))
+                    
+        return biasList, weightsList
+        
+        
+    def paramVector(self) -> tc.Tensor:
+        vec = []
+        for param in self.model.parameters():
+            vec.append(tc.Tensor(param).reshape((-1, 1)))
+            
+        return tc.cat(vec)
+    
+   
+    def paramVec(self) -> tc.Tensor:
+        biasList, weightsList = self.paraList()
+        
+        bias = tc.cat(biasList)
+        weight = tc.cat(weightsList)
+        
+        return tc.cat((bias, weight)).reshape((-1, 1))
+    
+        
+    def biasVec(self, biasList: List[Tensor]) -> tc.Tensor:
+        bias = biasList[0].reshape((-1, ))
+        
+        for i in range(1, self.depth + 2):
+            bias = tc.cat((bias, biasList[i].reshape((-1, ))))
+        
+        return bias
+
+    def weightVec(self, weightList: List[Tensor]) -> tc.Tensor:
+        weight = weightList[0].reshape((-1, 1))
+        
+        for i in range(1, self.depth + 2):
+            weight = tc.cat((weight, weightList[i].reshape((-1, 1))))
+        
+        return weight
+        
+     
+    def updateParameters(self, weights: tc.Tensor):
+        bias_size = (1 + self.depth) * self.width + self.output_size
+        bias = weights[:bias_size]
+        weights = weights[bias_size:]
+        
+        self.updateBias(bias)
+        self.updateWeight(weights)
+    
+    
+    
+    def updateBias(self, bias):
+        inputBiasSize = self.width
+        hiddenBiasSize = self.depth * self.width
+        
+        inputBias = bias[: inputBiasSize]
+        bias = bias[inputBiasSize: ]
+        hiddenBias = bias[: hiddenBiasSize]
+        bias = bias[hiddenBiasSize: ]
+        outputBias = bias
+        
+        with tc.no_grad():
+            self.model._modules['0'].bias = tc.nn.Parameter(inputBias.reshape(
+                (self.width,)))
+        
+            for i in range(1, self.depth + 1):
+                self.model._modules[str(2*i)].bias = tc.nn.Parameter(hiddenBias[: self.width].reshape((self.width,)))
+                hiddenBias = hiddenBias[self.width: ]
+        
+        
+            self.model._modules[str(2*(self.depth + 1))].bias = tc.nn.Parameter(outputBias.reshape((self.output_size,)))
+        
            
-    def getWeights(self): 
-        modules = self.model._modules
-        module_in = list(modules.items())[0]
-        weight_in = (module_in[1].weight)
+    
+    def updateWeight(self, weights):
+        inputLayerSize = self.input_size * self.width
+        outputLayerSize = self.output_size * self.width
         
-        module_out = list(modules.items())[-1]
+        inputWeights = weights[:inputLayerSize]
+        weights = weights[inputLayerSize:]
+        outputWeights = weights[-outputLayerSize:]
+        weights = weights[:-outputLayerSize]
+
+        hiddenWeights = weights
+        with tc.no_grad():
+            self.model._modules['0'].weight = tc.nn.Parameter(inputWeights.reshape(
+                (self.width, self.input_size)))
         
-        weight_hidden = list(self.model._modules.items())
-        weight_hidden = weight_hidden[1:]
-        weight_hidden = weight_hidden[:-1]
+            for i in range(1, self.depth + 1):
+                layerWeight = hiddenWeights[:self.width * self.width]
+                hiddenWeights = hiddenWeights[self.width * self.width: ]
+                self.model._modules[str(2*i)].weight = tc.nn.Parameter(layerWeight.reshape((self.width, self.width)))
         
-        weight_hidden = tc.zeros((self.depth, self.width))
+            self.model._modules[str(2*(self.depth + 1))].weight = tc.nn.Parameter(outputWeights.reshape((self.output_size, self.width)))
         
-        
-           
             
     
-    def forward(self, x):
-        return self.model(x)
+    def forward(self, X):
+        x = X[:, 1].reshape((-1, 1))
+        return (tc.square(x) - x) * self.model(X)
     
     
     def train(self, epoch, loss_fn):
@@ -135,10 +252,11 @@ class Net(tc.nn.Module):
             self.adam.zero_grad()
             self.adam.step(loss_fn)
             self.sched.step(self.loss_current)
-                
             self.info()
-
+    
+    
         
+
     def info(self):
         #? Save Best
         

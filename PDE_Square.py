@@ -25,9 +25,13 @@ class PDE_Square:
         self.x = x
         self.N = N
         
+        
     def train(self, epoch):
         self.net.train(epoch, self.loss)
         
+        
+    def u0(self, X: Tensor):
+        pass
         
     def setNet(self, net: Net):
         self.net = net
@@ -99,13 +103,12 @@ class PDE_Square:
         BC = tc.cat([bc_lhs, bc_rhs])
         
         return X, IC, BC
-     
-     
-
-     
-    def realSolution(self):
+    
+    
+    
+    def real(self, X: tc.Tensor):
         raise(KeyError("No instance of method."))
-      
+
       
     def loss(self):
         raise(KeyError("No instance of Method."))

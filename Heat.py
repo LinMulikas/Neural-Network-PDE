@@ -11,7 +11,9 @@ class Heat(PDE_Square):
        
     
     def u0(self, X: tc.Tensor):
-        return tc.sin(tc.pi * X[:, 1]).reshape((-1, 1))
+        x = X[:, 1].reshape((-1, 1))
+        t = X[:, 0].reshape((-1, 1))
+        return tc.exp(-tc.pi**2 * t) * tc.sin(tc.pi * x).reshape((-1, 1))
        
        
     def loss(self):
@@ -23,8 +25,9 @@ class Heat(PDE_Square):
         U = self.net(X)
         dU = grad(U, X, tc.ones_like(U), True, True)[0]
         pt = dU[:, 0].reshape((-1, 1))
+        px = dU[:, 1]
         
-        dU2 = grad(dU[:, 1], X, tc.ones_like(dU[:, 1]), True, True)[0]
+        dU2 = grad(px, X, tc.ones_like(dU[:, 1]), True, True)[0]
         pxx = dU2[:, 1].reshape((-1, 1))
         
         
@@ -34,7 +37,7 @@ class Heat(PDE_Square):
         
         #? Loss_IC
         eq_ic = self.net(self.net.IC)
-        y_ic = self.u0(X)
+        y_ic = self.u0(self.net.IC)
         loss_ic = self.net.loss_criterion(eq_ic, y_ic)
         
         #? Loss_BC
@@ -51,3 +54,10 @@ class Heat(PDE_Square):
         self.net.loss_history.append(self.net.loss_current.item())
         
         return loss
+    
+    
+    
+    def real(self, X: tc.Tensor):
+        t = X[:, 0].reshape((-1, 1))
+        x = X[:, 1].reshape((-1, 1))
+        return tc.exp(-tc.pi**2 * t) * tc.sin(tc.pi * x)
