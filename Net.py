@@ -115,7 +115,7 @@ class Net(tc.nn.Module):
             self.loadDict(loadFile)        
         
 
-    def difTheta(self, X: tc.Tensor):
+    def difParams(self, X: tc.Tensor):
         X.requires_grad_()
         U = self(X)
         U_grad = grad(U, self.model.parameters(), tc.ones_like(U), True, True)
@@ -126,66 +126,14 @@ class Net(tc.nn.Module):
             
         return tc.cat(vec)
         
-        
-    def paraList(self):
-
-        biasList = []
-        
-        layersList = list(self.model._modules.items())
-        layersModule: List[Module] = []
-        
-        for i in range(2 * (self.depth + 1) + 1):
-            layersModule.append(layersList[i][1])
-            
-            
-        biasList: List[Tensor] = []
-        weightsList: List[Tensor] = []
-        
-        for i in range(len(layersModule)):
-            if(i % 2 == 1):
-                continue 
-            else:
-                layer = layersModule[i]
-                biasList.append(tc.Tensor(layer.bias).reshape((-1, 1)))
-                weightsList.append(tc.Tensor(layer.weight).reshape((-1, 1)))
-                    
-        return biasList, weightsList
-        
-        
+          
     def paramVector(self) -> tc.Tensor:
         vec = []
         for param in self.model.parameters():
             vec.append(tc.Tensor(param).reshape((-1, 1)))
             
         return tc.cat(vec)
-    
-   
-    def paramVec(self) -> tc.Tensor:
-        biasList, weightsList = self.paraList()
-        
-        bias = tc.cat(biasList)
-        weight = tc.cat(weightsList)
-        
-        return tc.cat((bias, weight)).reshape((-1, 1))
-    
-        
-    def biasVec(self, biasList: List[Tensor]) -> tc.Tensor:
-        bias = biasList[0].reshape((-1, ))
-        
-        for i in range(1, self.depth + 2):
-            bias = tc.cat((bias, biasList[i].reshape((-1, ))))
-        
-        return bias
-
-    def weightVec(self, weightList: List[Tensor]) -> tc.Tensor:
-        weight = weightList[0].reshape((-1, 1))
-        
-        for i in range(1, self.depth + 2):
-            weight = tc.cat((weight, weightList[i].reshape((-1, 1))))
-        
-        return weight
-        
-     
+      
     def updateParameters(self, weights: tc.Tensor):
         bias_size = (1 + self.depth) * self.width + self.output_size
         bias = weights[:bias_size]
@@ -194,6 +142,20 @@ class Net(tc.nn.Module):
         self.updateBias(bias)
         self.updateWeight(weights)
     
+    def updateParams(self, paramsVector: Tensor):
+        for param in self.parameters():
+            size = 1
+            for i in param.shape:
+                size *= i 
+                
+            vec = paramsVector[: size]
+            paramsVector = paramsVector[size: ]
+            param.data = vec.reshape(param.shape)
+        
+        return None
+                
+    
+
     
     
     def updateBias(self, bias):
