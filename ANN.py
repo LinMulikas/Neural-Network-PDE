@@ -219,10 +219,11 @@ class ANN(th.nn.Module):
                 'loss_history': self.loss_history
                 }
         
+        folder_path = os.path.join(rootPath, filePath)
         path = os.path.join(rootPath, filePath, fileName)
         
-        if not os.path.isdir(path):
-            os.makedirs(path)
+        if not os.path.isdir(folder_path):
+            os.makedirs(folder_path)
         
         th.save(data, path)
         
