@@ -14,6 +14,9 @@ from torch.nn import Module
 from pyDOE import lhs as LHS
 
 class ANN(th.nn.Module):
+    bestDict = 'models/best.pt'
+    nil = ''
+    
     device = th.device('cuda') if(th.cuda.is_available()) else th.device('cpu')
         
     
@@ -37,7 +40,8 @@ class ANN(th.nn.Module):
     def __init__(self, 
                  data_size: Tuple[int, int],
                  shape: Tuple[int, int], 
-                 loadFile:str = '',
+                 loadBest: bool = False,
+                 loadFile: str = '',
                  lr: float = 1e-2,
                  act = nn.Tanh,
                  auto_lr = True,) -> None:
@@ -71,30 +75,49 @@ class ANN(th.nn.Module):
         #? Build the optimizer.
         self.adam = th.optim.Adam(self.parameters(), self.lr)
         self.sgd = th.optim.SGD(self.parameters(), self.lr)
+        self.optim = self.adam
         
         self.sched = th.optim.lr_scheduler.ReduceLROnPlateau(
-            self.adam, mode = 'min', factor=0.1, patience=100)
+            self.optim, mode = 'min', factor=0.1, patience=100)
         
         #TODO: Load best has no current loss
-        if(loadFile != ''):
-            self.loadDict(loadFile)        
+        if(loadBest):
+            self.loadDict(ANN.bestDict)
+        else:
+            if(loadFile != ''):
+                self.loadDict(loadFile)        
 
         
 
    
     
-    def forward(self, X):
-        raise(RuntimeError("No implement of method."))
+    def forward(self, X: Tensor):
+        X = X.to(device=self.device)
+        X = self.model(X)
+        return X
+    
     
     
     #? Train, information visualization, save and load.
+    def loss(self):
+        raise(RuntimeError("No implement of method."))
+        
     
     def train(self, epoch, loss_fn):
         for self.cnt_Epoch in range(epoch):
-            self.adam.zero_grad()
-            self.adam.step(loss_fn)
+            self.optim.zero_grad()
+            self.optim.step(loss_fn)
             self.sched.step(self.loss_current)
             self.info()
+        
+        
+    def trainOnce(self, loss_fn):
+        self.cnt_Epoch += 1
+        self.optim.zero_grad()
+        self.optim.step(loss_fn)
+        self.sched.step(self.loss_current)
+        self.info()
+        
         
 
     def info(self):
@@ -142,7 +165,7 @@ class ANN(th.nn.Module):
             print()
             
             #TODO: Save Best.
-            rootPath = os.gethwd()
+            rootPath = os.getcwd()
             self.saveDict(
                 "autosave/Gen_{}_Loss_{}.pt".format(
                     int(self.cnt_Epoch / self.save_Gap + 1),
@@ -167,7 +190,7 @@ class ANN(th.nn.Module):
     
     
     def loadDict(self, fileName):
-        rootPath = os.gethwd()
+        rootPath = os.getcwd()
         filePath = os.path.join(rootPath, fileName)
         
         data = th.load(filePath, map_location=self.device)
@@ -196,6 +219,10 @@ class ANN(th.nn.Module):
                 'loss_history': self.loss_history
                 }
         
+        path = os.path.join(rootPath, filePath, fileName)
         
-        th.save(data, os.path.join(rootPath, filePath, fileName))
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        
+        th.save(data, path)
         

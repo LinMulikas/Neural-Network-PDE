@@ -1,114 +1,80 @@
 import numpy as np
-import torch as tc
+import torch as th
 
 from torch.autograd import grad
 from torch import Tensor
 from torch.nn import MSELoss
-from Net import Net
 
 from pyDOE import lhs as LHS
-from typing import Tuple
+from typing import Tuple, Literal
 from torch.types import Number
 
+
 class PDE_Square:
-    net: Net
     NAME = "NONE"
     t: Tuple[float, float]
     x: Tuple[float, float]
-    N: int
+    N_sample: int
     
-    def __init__(self, t: Tuple[float, float], x: Tuple[float, float], N: int) -> None:
-        device = tc.device('cuda') if(tc.cuda.is_available()) else tc.device('cpu')
-        tc.set_default_device(device)
+    def __init__(self, 
+                 t: Tuple[float, float], x: Tuple[float, float], 
+                 u0,
+                 N_sample: int) -> None:
+        
+        device = th.device('cuda') if(th.cuda.is_available()) else th.device('cpu')
+        th.set_default_device(device)
         self.NAME = self.__class__.__name__
         self.t = t
         self.x = x
-        self.N = N
-        
-        
-    def train(self, epoch):
-        self.net.train(epoch, self.loss)
-        
-        
-    def u0(self, X: Tensor):
-        pass
-        
-    def setNet(self, net: Net):
-        self.net = net
-        self.net.PDENAME = self.NAME
-        
-  
-    def data_generator(self):
-        t = self.t
-        x = self.x 
-        N = self.N
-        
-        #? X: LHS
-        X = Tensor(LHS(2, N))
-        X[:, 0] = t[0] + (t[1] - t[0]) * X[:, 0]
-        X[:, 1] = x[0] + (x[1] - x[0]) * X[:, 1]
-        
-        #? X: Density
-        # t_1 = tc.arange(0, 1/3, 1/(3*N/10)).reshape((-1, 1))
-        # t_2 = tc.arange(1/3, 2/3, 1/(3*N/50)).reshape((-1, 1))
-        # t_3 = tc.arange(2/3, 1, 1/(3*N/100)).reshape((-1, 1))
-        
-        # t_density = tc.cat([t_1, t_2, t_3]).reshape((-1,))
-        
-        # x_line = tc.arange(0, 1, 1/len(t_density)).reshape((-1,))
-        
-        # X = tc.stack(tc.meshgrid(t_density, x_line)).reshape((2, -1)).T
-        
-        X.requires_grad_()
-        
-        #? IC
-        # x_line = tc.arange(x[0], x[1], 10/N).reshape((-1, 1))
-        # x_ic = Tensor(np.sort(x[0] + (x[1] - x[0]) * np.array(LHS(1, int(N/5))), axis=0)).reshape((-1, 1))
-        
-        x_ic = tc.arange(x[0], x[1], 5/N).reshape((-1, 1))
-        x_ic = x_ic[1:]
-        x_ic = x_ic[:-1]
-        # x_ic = tc.cat((x_line, x_ic))
-                                                                        
-                                                                        
-        IC = tc.hstack((
-            t[0] * tc.ones_like(x_ic),
-            x_ic
-            )).reshape((-1, 2))
-        
-        #? BC
-        
-        # t_bc_lhs = tc.cat((t_line, t_bc_lhs))
-        
-        #? t: uniform
-        
-        t_line = tc.arange(t[0], t[1], 5/N).reshape((-1, 1))
-        
-        #? t: LHS
-        
-        # t_line = Tensor(np.sort(t[0] + (t[1] - t[0]) * np.array(LHS(1, int(N/5))), axis=0)).reshape((-1, 1))
-        # t_bc_rhs = tc.cat((t_line, t_bc_rhs))
-        
-        bc_lhs = tc.hstack((
-            t_line[1:],
-            x[0] * tc.ones_like(t_line[1:])
-        )).reshape((-1, 2))
-        
-        
-        bc_rhs = tc.hstack((
-            t_line[1:],
-            x[1] * tc.ones_like(t_line[1:])
-        )).reshape((-1, 2))
-        
-        BC = tc.cat([bc_lhs, bc_rhs])
-        
-        return X, IC, BC
+        self.u0 = u0
+        self.N_sample = N_sample
     
     
+    def u0(self, X: Tensor) -> Tensor:
+        raise(RuntimeError("No implement of method."))
+        
     
-    def real(self, X: tc.Tensor):
-        raise(KeyError("No instance of method."))
-
+    
+    def sampling(self, lhs: float, rhs: float, method: Literal['lhs', 'uni']) -> Tensor:
+        data = None
+        if(method == 'lhs'):
+            data = lhs + (rhs - lhs) * th.arange(lhs, rhs, (1.0 * rhs - lhs)/self.N_sample).reshape((-1, 1))
+        elif(method == 'uni'):
+            data = lhs + (rhs - lhs) * Tensor(np.array(LHS(1, self.N_sample))).reshape((-1, 1))
+        
+        
+        return data
       
-    def loss(self):
-        raise(KeyError("No instance of Method."))
+      
+        
+    def loss(self, X: Tuple[Tensor, Tensor, Tensor], fn):
+        raise(RuntimeError("No implement of method."))
+    
+
+    def sampling_data(self, method: Literal['lhs', 'uni'] = 'lhs') -> Tuple[Tensor, Tensor, Tensor]:
+        x_lhs = self.x[0]
+        x_rhs = self.x[1]
+        t_lhs = self.t[0]
+        t_rhs = self.t[1]
+        
+        x_ic = self.sampling(x_lhs, x_rhs, method)
+        
+        t_ic = t_lhs * th.ones_like(x_ic)
+        X_ic = th.hstack((t_ic, x_ic))
+        
+        t_bc = self.sampling(t_lhs, t_rhs, method)
+        
+        x_bc_lhs = x_lhs * th.ones_like(t_bc)
+        x_bc_rhs = x_rhs * th.ones_like(t_bc)
+        X_bc_lhs = th.hstack((t_bc, x_bc_lhs))
+        X_bc_rhs = th.hstack((t_bc, x_bc_rhs))
+        X_bc = th.cat((X_bc_lhs, X_bc_rhs))
+        
+        
+        x_line = self.sampling(x_lhs, x_rhs, method).reshape((-1,))
+        t_line = self.sampling(t_lhs, t_rhs, method).reshape((-1,))
+        T, X = th.meshgrid(t_line, x_line)
+        X_region = th.stack((T, X)).reshape((-1, 2))
+        
+            
+        return (X_region, X_ic, X_bc)

@@ -1,22 +1,35 @@
-# Neural-Network-PDE
+# README
 
-# 0.Introduction
+# 1. How to use?
 
-## Author
-The repository Neural-Network-PDE belongs to LinMulikas, who is an UG student at SUSTech (Southern University of Science and Technology). Any question please contact wangdl2020@mail.sustech.edu.cn for academic purposes.
+1. Build a folder with a specified PDE name. 
 
-## Repository
-The repository is built for self use corresponding to PDE solving in Neural Network with Pytorch. The python version is 3.9.16.
+    Then create a new file 'xxx.ipynb'. When the 'xxx.ipynb' file has built in the child-folder, one should notice that the first several lines in the 'xxx.ipynb' file should be 
 
-# PINNS
+    ```Python
+    import sys
+    from os import path
+    sys.path.append(path.dirname(path.dirname(path.abspath('__file__'))))
 
-## 1. Framework introduction.
-Implement of PINNS method in PDE, I've build a basic construciton 'PDENN' as the NN for PDE. User need to inherit the PDENN class to create a brand new PDE, which requires the definition of loss(), which can be represente as loss = loss_PDE + loss_BC + loss_IC.
+    from PINNS import *
+    ```
 
-And I've build PDE2D as a general framework for u(t, x), 2D PDE solving. Including a PDE-drawer, loss history recorder, some useful method to divides the region.
+    to import the files, classes in the parent folder.
 
-## 2. Build new PDEs.
+2. Build the PINNS object.
+    ```Python
+    def u0(X: Tensor):
+    x = X[:, 1]
+    return th.sin(x).reshape((-1, 1))
 
+    net = ANN((2, 1), (6, 6))
+    pde = PDE_Square((0, 1), (0, 1), u0, 500)
+    pinns = PINNS(net, pde)
+    ```
 
-## 3. Train and load.
+    Here, one should be careful that the class 'PDE_Square' has no implement of the initial condition 'u0'. Thus, provided the u0, the pde will be built correctly.
 
+3. Train and load.
+   The 'ANN.py' has built-in methods for auto save and load. In the process of training, the folder './FOLDERNAME/models/' and './FOLDERNAME/models/autosave' will be built. And the model with the minimal loss will be save as 'best.pt' in the './FOLDERNAME/models' folder.
+
+   When the net has the parameter 'loadBest', it will load the './FOLDERNAME/models/best.pt' as the model parameters. And one can also provide a non-empty content for the 'loadFile', then the 'ANN.py' will load the given path as the model.
