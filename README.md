@@ -19,8 +19,8 @@
 2. Build the PINNS object.
     ```Python
     def u0(X: Tensor):
-    x = X[:, 1]
-    return th.sin(x).reshape((-1, 1))
+        x = X[:, 1]
+        return th.sin(x).reshape((-1, 1))
 
     net = ANN((2, 1), (6, 6))
     pde = PDE_Square((0, 1), (0, 1), u0, 500)
